@@ -1,6 +1,6 @@
 
 ```
-docker build -t graph-transfer-learning/egi:latest -t graph-transfer-learning/egi:v2
+docker build -t graph-transfer-learning/egi:latest -t graph-transfer-learning/egi:v2 .
 ```
 
 ```
