@@ -1,0 +1,15 @@
+#+title: New
+
+#+PROPERTY: header-args :display plain :session /jpy:localhost#8888:foo
+
+#+begin_src jupyter-python
+!nvcc --version
+#+end_src
+
+#+RESULTS:
+: 503268d15706836d97c9c8abba22e7cc
+
+#+begin_src jupyter-python
+a = 10
+
+#+end_src

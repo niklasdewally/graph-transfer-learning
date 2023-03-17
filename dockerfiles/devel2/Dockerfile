@@ -8,7 +8,8 @@ ENTRYPOINT ["/bin/bash","-c"]
 WORKDIR /workspace
 
 RUN mkdir -p /workspace/mount
-RUN pip install ipywidgets plotly
+
+RUN pip3 install ipython ipykernel
 
 CMD ["jupyter notebook --ip='*' --NotebookApp.token='' --NotebookApp.password=''"]
 
