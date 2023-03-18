@@ -13,20 +13,18 @@ jupyter:
     name: python3
 ---
 
+<!-- #region -->
 # Introduction 
 
-The aim of this notebook is to give a high level overview of the EGI framework code.
+The aim of this notebook is to give an overview of the EGI framework code.
 
-This notebook primarily runs through the run_airport.py experiment, annotating and refactoring code.
+This notebook primarily runs through the `run_airport.py` experiment, annotating and refactoring code.
+
 
 ![Figure 2, taken from (Transfer Learning of Graph Neural Networks with Ego-graph Information Maximization, Zhu et al, 2021)](figures/fig2.png)
+<!-- #endregion -->
 
-
-
-
-
-
-## Some setup 
+## Some Setup 
 
 
 Does our GPU work?
@@ -68,6 +66,7 @@ from collections import defaultdict
 from sklearn.manifold import SpectralEmbedding
 from types import SimpleNamespace
 import plotly.graph_objects as go
+import ipywidgets as widgets
 
 from overview_code import *
 
@@ -196,15 +195,23 @@ opts = SimpleNamespace(
 * * * 
 
 
-The data:
+**A quick look at the input data:**
+
+
+The edge list:
 
 ```python
 !head -n 5 "../../egi/data/usa-airports.edgelist"
 ```
 
+The node labels:
+
 ```python
 !head -n 5 "../../egi/data/labels-usa-airports.txt"
 ```
+
+---
+
 
 **Now, we can read in the dataset as a NetworkX graph**
 
@@ -249,6 +256,7 @@ def read_graph(edge_path,label_path):
 
 ```python
 g,labels = read_graph(opts.edge_path,opts.label_path)
+print(g)
 ```
 
 ```python
@@ -265,7 +273,7 @@ validation_g,validation_labels = read_graph("../../egi/data/brazil-airports.edge
 plot_airport_graph(validation_g,{})
 ```
 
-# 2. Data Preprocessing
+# 2. Model Initialization
 
 
 **Remove self-loops from the graph**
@@ -361,16 +369,13 @@ def createTraining(labels, valid_mask = None, train_ratio=0.8):
 train_mask, test_mask = createTraining(labels)
 ```
 
-# 3. Embedder
-
-
-## 3.1 Initialisation
+## 2.3 Embedder Initialisation
 
 
 **Initialise the parameters of the embedder model**
 
 ```python
-emb_degree = nn.Parameter(torch.FloatTensor(np.random.normal(0, 1, [100, opts.n_hidden])), requires_grad=False)
+degree_emb = nn.Parameter(torch.FloatTensor(np.random.normal(0, 1, [100, opts.n_hidden])), requires_grad=False)
 ```
 
 **The features of our data are the node degrees.**
@@ -410,6 +415,10 @@ in_feats
 ```
 
 ```python
+features
+```
+
+```python
 n_classes = labels.max().item() + 1
 n_classes 
 ```
@@ -432,7 +441,7 @@ else:
 
 ```
 
-EGI is a method that can work on many different GNNs. Here, we support DGI and SubGI. VGAE is currently broken. 
+TODO COMMENT
 
 ```python
 if opts.model_type == 0:
@@ -482,76 +491,359 @@ cnt_wait = 0
 best = 1e9
 best_t = 0
 dur = []
-g.ndata['features'] = features.to(torch.device('cpu')) # hacky hack to make DGI happy 
+g.ndata['features'] = features.to(torch.device('cpu')) # hacky hack to make DGL happy 
 ```
 
-## 3.2 Training the Embedder
+# 3 An aside -  Generation of k-hop-ego-graphs
+
+
+The following code can be used to sample k-hop ego-graphs from the DGL graph. 
 
 
 
+
+
+This is represented in code as a `NodeFlow` - here, layers represent the number of hops from the ego.
+
+In a `Nodeflow`, the set of edges between layers is known as a `block`.
+
+What `opt` calls `n_layers` is the `k` number used in the model.
+
+```python
+k = 3
+```
+
+```python
+g.readonly() # A readonly DGL graph is required for sampling.
+
+
+# https://docs.dgl.ai/en/0.2.x/api/python/sampler.html
+sampler = dgl.contrib.sampling.NeighborSampler(g, 256, 5,
+                                               neighbor_type='in', num_workers=1,
+                                               num_hops=k, shuffle=True)    
+```
+
+<!-- #region -->
+The resultant node flow would look something like this:
+
+![The NodeFlow object](figures/nodeflow.png)
+
+
+A node flow, in this case, is a directional graph representing all sampled k-hop ego graphs.
+
+Each layer of the flow represents another hop in the ego graph.
+    
+
+<!-- #endregion -->
+
+* * * 
+
+
+
+**Now, lets look at some specific ego graphs:**
+
+
+First, get a list of all edges in the ego graph for some `start` node, alongside their block number:
+
+```python
+def get_edges_from_flow(node_flow,start,k):
+    edges = []
+    if k==0:
+        return None
+    
+    for next_node in node_flow.successors(start):
+        next_node = next_node.item()
+        edges += [[k,start,next_node]]
+        a = get_edges_from_flow(node_flow,next_node,k-1)
+        if a is not None:
+            edges += a
+    
+    return edges
+
+```
+
+```python
+node_flow = sampler.fetch(1)[0]
+```
+
+```python
+get_edges_from_flow(node_flow,1,k)[0:5]
+```
+
+**Now, visualise these ego-graphs**
 
 ```python
 """
-A single training epoch of the embedder.
+Plot and show a given ego-graph. 
+
+Colours the graph according to n-hops from the centre.
+
+nf: The nodeflow representing all possible ego-graphs
+start: the node to visualise the ego_graph of
+k: 
+
+Returns: None
 """
-def embedder_training_epoch(dgi,dgi_optimizer,cnt_wait,best,best_t,dur,g):
+def plot_ego_graph(nf,start,k):
+    # adapted from https://plotly.com/python/network-graphs/
+    edges = get_edges_from_flow(nf,start,k)
+    
+    # First, convert to networkX
+    G = nx.Graph()
+    
+    # Add the start node in the centre
+    G.add_node(start,pos=[0,0]) 
+    colours = [0]
+    
+    # Add nodes, and store colours
+    # For now, just colour the centre
+    # Do this before edges so colour and nodes are the same ordering
+    for colour,src,dest in edges:
+        colours += [5]
+        G.add_node(dest)
     
     
-    train_sampler = dgl.contrib.sampling.NeighborSampler(g, 256, 5,
-                                                   neighbor_type='in', num_workers=1,
-                                                   num_hops=args.n_layers + 1, shuffle=True)
-
-    dgi.train()
-
-    if epoch >= 3:
-      t0 = time.time()
-
-    loss = 0.0
-
-    # VGAE mode
-    #if args.model_type == 1:
-    #   dgi.optimizer = dgi_optimizer
-    #   dgi.train_sampler = train_sampler
-    #   dgi.features = features
-    #   loss = dgi.train_model()
-
+    for _,src,dest in edges:
+        G.add_edge(src,dest)
+        
     
-    # EGI mode
-    if args.model_type == 2:
-        for nf in train_sampler:
+    # give the nodes positions
+    positions = nx.spring_layout(G,center=[0,0])
+    
+    edge_x = []
+    edge_y = []
+    for edge in G.edges():
+        x0, y0 = positions[edge[0]]
+        x1, y1 = positions[edge[1]]
+        edge_x.append(x0)
+        edge_x.append(x1)
+        edge_x.append(None)
+        edge_y.append(y0)
+        edge_y.append(y1)
+        edge_y.append(None)
+
+    edge_trace = go.Scatter(
+        x=edge_x, y=edge_y,
+        line=dict(width=0.5, color='#888'),
+        hoverinfo='none',
+        mode='lines')
+
+    node_x = []
+    node_y = []
+    for node in G.nodes():
+        x, y = positions[node]
+        node_x.append(x)
+        node_y.append(y)
+
+    node_trace = go.Scatter(
+        x=node_x, y=node_y,
+        mode='markers',
+        hoverinfo='text',
+        marker=dict(
+            showscale=True,
+            # colorscale options
+            #'Greys' | 'YlGnBu' | 'Greens' | 'YlOrRd' | 'Bluered' | 'RdBu' |
+            #'Reds' | 'Blues' | 'Picnic' | 'Rainbow' | 'Portland' | 'Jet' |
+            #'Hot' | 'Blackbody' | 'Earth' | 'Electric' | 'Viridis' |
+            colorscale='YlGnBu',
+            reversescale=True,
+            color=[],
+            size=10,
+            colorbar=dict(
+                thickness=15,
+                title='Ego Graph',
+                xanchor='left',
+                titleside='right'
+            ),
+            line_width=2))
+
+        
+    node_trace.marker.color = colours
+    
+    fig = go.Figure(data=[edge_trace, node_trace],
+             layout=go.Layout(
+                showlegend=False,
+                hovermode='closest',
+                margin=dict(b=20,l=5,r=5,t=40),
+                annotations=[ dict(
+                    text="An egograph",
+                    showarrow=False,
+                    xref="paper", yref="paper",
+                    x=0.005, y=-0.002 ) ],
+                xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
+                )
+    fig.show()
+```
+
+```python
+plot_ego_graph(node_flow,1,k)
+```
+
+```python
+plot_ego_graph(node_flow,9,k)
+```
+
+```python
+plot_ego_graph(node_flow,20,k)
+```
+
+# 4. The Encoder and Discriminator in greater detail
+
+
+*The below code has been adapted from `models/dgi.py`.*
+
+
+The encoder is trained as a GAN. It produces both "real" and "fake" node embeddings for a discriminator which then tries to guess which is which.
+
+```python
+class Encoder(nn.Module):
+    def __init__(self, g, in_feats, n_hidden, n_layers, activation, dropout):
+        super(Encoder, self).__init__()
+        self.g = g
+        #self.conv = GCN(g, in_feats, n_hidden, n_hidden, n_layers, activation, dropout)
+        self.conv = GIN(g, n_layers + 1, 1, in_feats, n_hidden, n_hidden, dropout, True, 'sum', 'sum')
+    
+    def forward(self, features, corrupt=False):
+        if corrupt:
+            perm = torch.randperm(self.g.number_of_nodes())
+            features = features[perm]
+        features = self.conv(features)
+        return features
+```
+
+The corrupt flag of `forward()` is used to generate "fake output" for use for training the discriminator.
+In the paper, they refer to this fake output as the `negative ego graph`.
+
+```python
+class Discriminator(nn.Module):
+    def __init__(self, n_hidden):
+        super(Discriminator, self).__init__()
+        self.weight = nn.Parameter(torch.Tensor(n_hidden, n_hidden))
+        self.reset_parameters()
+
+    def uniform(self, size, tensor):
+        bound = 1.0 / math.sqrt(size)
+        if tensor is not None:
+            tensor.data.uniform_(-bound, bound)
+
+    def reset_parameters(self):
+        size = self.weight.size(0)
+        self.uniform(size, self.weight)
+
+    def forward(self, features, summary):
+        features = torch.matmul(features, torch.matmul(self.weight, summary))
+        return features
+```
+
+These are trained together as a GAN like so:
+    
+For this example, we consider the `DGI` version of the encoder.
+
+```python
+class DGI(nn.Module):
+    def __init__(self, g, in_feats, n_hidden, n_layers, activation, dropout):
+        super(DGI, self).__init__()
+        self.g = g
+        self.in_feats = in_feats
+        self.n_hidden = n_hidden
+        self.n_layers = n_layers
+        self.activation = activation
+        self.dropout = dropout
+        self.encoder = Encoder(g, in_feats, n_hidden, n_layers, activation, dropout)
+        self.discriminator = Discriminator(n_hidden)
+        self.loss = nn.BCEWithLogitsLoss()
+    
+    def reset_parameters(self):
+        self.encoder = Encoder(self.g, self.in_feats, self.n_hidden, self.n_layers, self.activation, self.dropout)
+        self.discriminator = Discriminator(self.n_hidden)
+        self.loss = nn.BCEWithLogitsLoss()
+
+    def forward(self, features):
+        # features = self.g.ndata['features']
+        positive = self.encoder(features, corrupt=False)
+        negative = self.encoder(features, corrupt=True)
+        summary = torch.sigmoid(positive.mean(dim=0))
+
+        positive = self.discriminator(positive, summary)
+        negative = self.discriminator(negative, summary)
+
+        l1 = self.loss(positive, torch.ones_like(positive))
+        l2 = self.loss(negative, torch.zeros_like(negative))
+
+        return l1 + l2
+```
+
+# 4. Training
+
+
+## 4.1 Airport discriminator
+
+```python
+## 4.2 Training
+```
+
+# 5. Results
+
+```python
+"""
+Train the embedder
+"""
+def train_embedder(opts,dgi,dgi_optimizer,cnt_wait,best,best_t,dur,g):
+    for epoch in range(opts.n_dgi_epochs):
+        train_sampler = dgl.contrib.sampling.NeighborSampler(g, 256, 5,
+                                                       neighbor_type='in', num_workers=1,
+                                                       num_hops=args.n_layers + 1, shuffle=True)
+
+        dgi.train()
+
+        if epoch >= 3:
+          t0 = time.time()
+
+        loss = 0.0
+
+        # VGAE mode
+        #if args.model_type == 1:
+        #   dgi.optimizer = dgi_optimizer
+        #   dgi.train_sampler = train_sampler
+        #   dgi.features = features
+        #   loss = dgi.train_model()
+
+
+        # EGI mode
+        if args.model_type == 2:
+            for nf in train_sampler:
+              dgi_optimizer.zero_grad()
+              l = dgi(features, nf)
+              l.backward()
+              loss += l
+              dgi_optimizer.step()
+
+        # DGI mode
+        elif args.model_type == 0:
           dgi_optimizer.zero_grad()
-          l = dgi(features, nf)
-          l.backward()
-          loss += l
+          loss = dgi(features)
+          loss.backward    
           dgi_optimizer.step()
 
-    # DGI mode
-    elif args.model_type == 0:
-      dgi_optimizer.zero_grad()
-      loss = dgi(features)
-      loss.backward    
-      dgi_optimizer.step()
-        
-    if loss < best:
-        best = loss
-        best_t = epoch
-        cnt_wait = 0
-        torch.save(dgi.state_dict(), 'best_classification_{}.pkl'.format(args.model_type))
-    else:
-      cnt_wait += 1
+        if loss < best:
+            best = loss
+            best_t = epoch
+            cnt_wait = 0
+            torch.save(dgi.state_dict(), 'best_classification_{}.pkl'.format(args.model_type))
+        else:
+          cnt_wait += 1
 
-    if cnt_wait == args.patience:
-      print('Early stopping!')
-      return
+        if cnt_wait == args.patience:
+          print('Early stopping!')
+          return
 
-    if epoch >= 3:
-      dur.append(time.time() - t0)
-
-    
-    classifier = create_classifier()
-    train_classifier(classifier)
+        if epoch >= 3:
+          dur.append(time.time() - t0)
 
 
+        classifier = create_classifier()
+        train_classifier(classifier)
 ```
 
 ```python
@@ -639,26 +931,6 @@ def evaluate(model, features, labels, mask):
 
 
 ```python
-"""
-Run the model.
-
-- args: A namespace containing the experiment options.
-
-Returns: the success-rate of the model.
-"""
-
-def run_model(args):
-    
-
-
-
-```
-
-# Generation of ego-graphs
-
-> Sample M ego-graphs {(g1, x1), ..., (gM , xM )} from empirical distribution P without replacement
-
-```python
 # Run the model multiple times, and print the average and standard deviation of the results
 test_results = []
 
@@ -666,20 +938,4 @@ for runs in tqdm(range(10)):
   test_results.append(run_model(opts));
 
 print("Test Accuracy {:.4f}, std {:.4f}".format(np.mean(test_results), np.std(test_results)))
-```
-
-# The encoder
-
-
-# Center Node embedding
-
-
-# Discriminator 
-
-```python
-
-```
-
-```python
-
 ```
