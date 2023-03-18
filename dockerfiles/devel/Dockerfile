@@ -10,5 +10,10 @@ WORKDIR /workspace
 RUN mkdir -p /workspace/mount
 RUN pip install ipywidgets plotly
 
+# Jupyter extensions
+RUN pip install -e jupyter_contrib_nbextensions
+RUN jupyter contrib nbextension install --user
+
+
 CMD ["jupyter notebook --ip='*' --NotebookApp.token='' --NotebookApp.password=''"]
 
