@@ -13,12 +13,22 @@ jupyter:
     name: python3
 ---
 
+<!-- #region toc=true -->
+<h1>Table of Contents<span class="tocSkip"></span></h1>
+<div class="toc"><ul class="toc-item"><li><span><a href="#Introduction" data-toc-modified-id="Introduction-0"><span class="toc-item-num">0&nbsp;&nbsp;</span>Introduction</a></span><ul class="toc-item"><li><span><a href="#Some-Setup" data-toc-modified-id="Some-Setup-0.1"><span class="toc-item-num">0.1&nbsp;&nbsp;</span>Some Setup</a></span></li></ul></li><li><span><a href="#The-Airport-Dataset" data-toc-modified-id="The-Airport-Dataset-1"><span class="toc-item-num">1&nbsp;&nbsp;</span>The Airport Dataset</a></span></li><li><span><a href="#Data-Preparation" data-toc-modified-id="Data-Preparation-2"><span class="toc-item-num">2&nbsp;&nbsp;</span>Data Preparation</a></span><ul class="toc-item"><li><span><a href="#Conversion-to-DGL" data-toc-modified-id="Conversion-to-DGL-2.1"><span class="toc-item-num">2.1&nbsp;&nbsp;</span>Conversion to DGL</a></span></li><li><span><a href="#Creation-of-training-and-test-sets" data-toc-modified-id="Creation-of-training-and-test-sets-2.2"><span class="toc-item-num">2.2&nbsp;&nbsp;</span>Creation of training and test sets</a></span></li></ul></li><li><span><a href="#Generation-of-k-hop-ego-graphs" data-toc-modified-id="Generation-of-k-hop-ego-graphs-3"><span class="toc-item-num">3&nbsp;&nbsp;</span>Generation of k-hop-ego-graphs</a></span><ul class="toc-item"><li><span><a href="#A-look-at-some-specific-ego-graphs" data-toc-modified-id="A-look-at-some-specific-ego-graphs-3.1"><span class="toc-item-num">3.1&nbsp;&nbsp;</span>A look at some specific ego-graphs</a></span></li></ul></li><li><span><a href="#The-Encoder-and-Discriminator" data-toc-modified-id="The-Encoder-and-Discriminator-4"><span class="toc-item-num">4&nbsp;&nbsp;</span>The Encoder and Discriminator</a></span></li><li><span><a href="#Training" data-toc-modified-id="Training-5"><span class="toc-item-num">5&nbsp;&nbsp;</span>Training</a></span></li></ul></div>
+<!-- #endregion -->
+
+```python
+# Change this to disable plotting - speeds up execution time!
+plot_graphs = True
+```
+
 <!-- #region -->
 # Introduction 
 
-The aim of this notebook is to give an overview of the EGI framework code.
+The aim of this notebook is to give an overview of the EGI framework.
 
-This notebook primarily runs through the `run_airport.py` experiment, annotating and refactoring code.
+This notebook primarily runs through the `run_airport.py` experiment.
 
 
 ![Figure 2, taken from (Transfer Learning of Graph Neural Networks with Ego-graph Information Maximization, Zhu et al, 2021)](figures/fig2.png)
@@ -27,17 +37,15 @@ This notebook primarily runs through the `run_airport.py` experiment, annotating
 ## Some Setup 
 
 
-Does our GPU work?
+Check if the GPU works.
 
-This works on any CUDA 11 compatible GPU, but has been written and tested on a 3060 only
+This code should work on any CUDA 11 compatible GPU, but has been written and tested on a 3060 only.
 
 ```python
 !nvcc --version
 ```
 
 ```python
-# Import egi code here
-# TODO: make this a pip library
 import sys
 sys.path.append("../../egi")
 ```
@@ -50,12 +58,15 @@ import networkx as nx
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 import dgl
 from dgl import DGLGraphStale as DGLGraph
 from dgl.data import register_data_args, load_data
+
 from models.dgi import DGI, MultiClassifier
-from models.subgi import SubGI
-#from models.vgae import VGAE
+from  models.subgi import GNNDiscLayer,GIN
+from models.utils import *
+
 from IPython import embed
 import scipy.sparse as sp
 from collections import defaultdict
@@ -72,7 +83,106 @@ from overview_code import *
 
 ```
 
+# The Airport Dataset
+
+This notebook uses the provided airport data set that links airports that fly to eachother with edges, and labels airports based on their relative popularity.
+
+The USA is used for the training and test sets, and Brazil for validation.
+
+
+**First, set some options for the model:**
+
 ```python
+opts = SimpleNamespace(
+    edge_path = "../../egi/data/usa-airports.edgelist",
+    label_path="../../egi/data/labels-usa-airports.txt",
+    data_src="",
+    data_id="",
+    gpu=0,
+    model_id=2,
+    dropout=0.0,
+    dgi_lr=0.001,
+    classifier_lr=1e-2,
+    n_dgi_epochs=100,
+    n_classifier_epochs=100,
+    n_hidden=32,
+    n_layers=5,
+    weight_decay=0.,
+    patience=20,
+    model=True,
+    self_loop=True,
+    model_type=2,
+    graph_type="DD"
+
+)
+```
+
+* * * 
+**A quick look at the input data:**
+
+
+The edge list:
+
+```python
+!head -n 5 "../../egi/data/usa-airports.edgelist"
+```
+
+The node labels:
+
+```python
+!head -n 5 "../../egi/data/labels-usa-airports.txt"
+```
+
+---
+
+
+**Now, read in the dataset as a NetworkX graph**
+
+```python code_folding=[22]
+"""
+Read in a graph from a given edge list and node label list.
+
+
+edge_path: A file containing edges. This must be in the form:
+    <int> <int>
+    <int> <int>
+
+    where each line contains the integer IDs of the nodes on each edge.
+    
+    
+label_path: A file containing node labels. This must be in the form:
+    <int> <string>
+    <int> <string>
+
+    where each line contains the integer ID of a node, followed by its label.
+    
+    
+    
+Returns: a networkx graph, and a dictionary of labels.
+
+"""
+def read_graph(edge_path,label_path):
+    g = nx.Graph()
+    
+    with open(edge_path) as IN:
+        for line in IN:
+            tmp = line.strip().split()
+            g.add_edge(int(tmp[0]), int(tmp[1]))
+    labels = dict()
+    with open(label_path) as IN:
+        IN.readline()
+        for line in IN:
+            tmp = line.strip().split(' ')
+            labels[int(tmp[0])] = int(tmp[1])
+    return g, labels
+```
+
+```python
+g,labels = read_graph(opts.edge_path,opts.label_path)
+print(g)
+```
+
+```python code_folding=[10]
 """
 Plot and show a given airport graph. 
 
@@ -84,6 +194,8 @@ labels: a map of node ids to labels
 Returns: None
 """
 def plot_airport_graph(G,labels):
+    if not plot_graphs:
+        return
     # adapted from https://plotly.com/python/network-graphs/
     
     # give the nodes positions
@@ -158,114 +270,13 @@ def plot_airport_graph(G,labels):
     fig.show()
 ```
 
-# 1. The Airport Dataset
-
-In this example, we are using the provided airport data set. This links airports that fly to eachother with edges, as well as providing labels on the relative popularities of certain airports.
-
-For our training and test data, we will use the airports of the USA.
-
-
-**First, we must set some options for the model:**
-
-```python
-opts = SimpleNamespace(
-    edge_path = "../../egi/data/usa-airports.edgelist",
-    label_path="../../egi/data/labels-usa-airports.txt",
-    data_src="",
-    data_id="",
-    gpu=0,
-    model_id=2,
-    dropout=0.0,
-    dgi_lr=0.001,
-    classifier_lr=1e-2,
-    n_dgi_epochs=100,
-    n_classifier_epochs=100,
-    n_hidden=32,
-    n_layers=1,
-    weight_decay=0.,
-    patience=20,
-    model=True,
-    self_loop=True,
-    model_type=2,
-    graph_type="DD"
-
-)
-```
-
-* * * 
-
-
-**A quick look at the input data:**
-
-
-The edge list:
-
-```python
-!head -n 5 "../../egi/data/usa-airports.edgelist"
-```
-
-The node labels:
-
-```python
-!head -n 5 "../../egi/data/labels-usa-airports.txt"
-```
-
----
-
-
-**Now, we can read in the dataset as a NetworkX graph**
-
-```python
-"""
-Read in a graph from a given edge list and node label list.
-
-
-edge_list: A file containing edges. This must be in the form:
-    <int> <int>
-    <int> <int>
-
-    where each line contains the integer IDs of the nodes on each edge.
-    
-    
-edge_list: A file containing node labels. This must be in the form:
-    <int> <string>
-    <int> <string>
-
-    where each line contains the integer ID of a node, followed by its label.
-    
-    
-    
-Returns: a networkx graph, and a dictionary of labels.
-
-"""
-def read_graph(edge_path,label_path):
-    g = nx.Graph()
-    
-    with open(edge_path) as IN:
-        for line in IN:
-            tmp = line.strip().split()
-            g.add_edge(int(tmp[0]), int(tmp[1]))
-    labels = dict()
-    with open(label_path) as IN:
-        IN.readline()
-        for line in IN:
-            tmp = line.strip().split(' ')
-            labels[int(tmp[0])] = int(tmp[1])
-    return g, labels
-```
-
-```python
-g,labels = read_graph(opts.edge_path,opts.label_path)
-print(g)
-```
-
 ```python
 plot_airport_graph(g,labels)
 ```
 
-**Our aim is to direct-transfer the node labels from this graph onto another with a different topology.**
+**The aim is to direct-transfer the node labels from this graph onto another with a different topology.**
 
-For our validation data, we use the Brazil airport data.
+In this case, this will be the Brazil dataset.
 
 ```python
 validation_g,validation_labels = read_graph("../../egi/data/brazil-airports.edgelist",
@@ -273,19 +284,19 @@ validation_g,validation_labels = read_graph("../../egi/data/brazil-airports.edge
 plot_airport_graph(validation_g,{})
 ```
 
-# 2. Model Initialization
+# Data Preparation
 
 
-**Remove self-loops from the graph**
+Remove self-loops from the graph:
 
 ```python
 g.remove_edges_from(nx.selfloop_edges(g))
 ```
 
-## 2.1 Conversion to DGL
+## Conversion to DGL
 
 
-For the rest of the model, we need the graph as  a `DGL` graph, and the labels as a `Tensor`.
+The graph needs to be converted to a `DGL` graph, and the labels to a `Tensor`.
 
 ```python
 """
@@ -300,7 +311,7 @@ Returns: a tuple of:
     labels: the labels, as a LongTensor .
     
 """
-def constructDGL(graph, labels):
+def construct_DGL(graph, labels):
     node_mapping = defaultdict(int)
     
     relabels = []
@@ -327,10 +338,10 @@ def constructDGL(graph, labels):
 ```
 
 ```python
-g, labels = constructDGL(g, labels)
+g, labels = construct_DGL(g, labels)
 ```
 
-## 2.2 Creation of training and test sets
+## Creation of training and test sets
 
 ```python
 """
@@ -369,148 +380,29 @@ def createTraining(labels, valid_mask = None, train_ratio=0.8):
 train_mask, test_mask = createTraining(labels)
 ```
 
-## 2.3 Embedder Initialisation
+# Generation of k-hop-ego-graphs
 
 
-**Initialise the parameters of the embedder model**
+The set of all sampled k-hop-ego-graphs is represented as a `NodeFlow`.
 
-```python
-degree_emb = nn.Parameter(torch.FloatTensor(np.random.normal(0, 1, [100, opts.n_hidden])), requires_grad=False)
-```
+In a `NodeFlow`, the set of edges between layers is known as a `block`.
 
-**The features of our data are the node degrees.**
-
-```python
-"""
-For a given graph, create a tensor of nodes to node degrees.
-
-graph: A DGL graph
-opts: The model options
-
-Return: a Tensor with the shape (number_of_nodes,max_degree). 
-
-    For a node n with degree d, this tensor contains a 1 
-    in position feature[n][d], and a 0 otherwise.
-....
-"""
-def degree_bucketing(graph, opts, degree_emb=None, max_degree = 10):
-    
-    max_degree = opts.n_hidden
-    features = torch.zeros([graph.number_of_nodes(), max_degree])
-
-    for i in range(graph.number_of_nodes()):
-        try:
-            features[i][min(graph.in_degree(i), max_degree-1)] = 1
-        except:
-            features[i][0] = 1
-    return features
-
-```
-
-```python
-features = degree_bucketing(g, opts, degree_emb)
-in_feats = features.shape[1]
-
-in_feats
-```
-
-```python
-features
-```
-
-```python
-n_classes = labels.max().item() + 1
-n_classes 
-```
-
-```python
-n_edges = g.number_of_edges()
-n_edges
-```
-
-**Are we running on a GPU? If so, enable CUDA for tensors.**
-
-```python
-if opts.gpu < 0:
-          cuda = False
-else:
-  cuda = True
-  torch.cuda.set_device(opts.gpu)
-  features = features.cuda()
-  labels = labels.cuda()
-
-```
-
-TODO COMMENT
-
-```python
-if opts.model_type == 0:
-  dgi = DGI(g,
-          in_feats,
-          opts.n_hidden,
-          opts.n_layers,
-          nn.PReLU(opts.n_hidden),
-          opts.dropout)
-
-
-#   if args.model_type == 1:
-#       dgi = VGAE(g,
-#           in_feats,
-#           args.n_hidden,
-#           args.n_hidden,
-#           args.dropout)
-
-
-#       dgi.prepare()
-#       dgi.adj_train = sp.csr_matrix(output_adj(g))
-
-
-elif opts.model_type == 2:
-  dgi = SubGI(g,
-          in_feats,
-          opts.n_hidden,
-          opts.n_layers,
-          nn.PReLU(opts.n_hidden),
-          opts.dropout,
-          opts.model_id)
-
-
-if cuda:
-    dgi.cuda()
-```
-
-```python
-dgi_optimizer = torch.optim.Adam(dgi.parameters(),
-                              lr=opts.dgi_lr,
-                              weight_decay=opts.weight_decay)
-
-```
-
-```python
-cnt_wait = 0
-best = 1e9
-best_t = 0
-dur = []
-g.ndata['features'] = features.to(torch.device('cpu')) # hacky hack to make DGL happy 
-```
-
-# 3 An aside -  Generation of k-hop-ego-graphs
-
-
-The following code can be used to sample k-hop ego-graphs from the DGL graph. 
-
-
-
-
-
-This is represented in code as a `NodeFlow` - here, layers represent the number of hops from the ego.
-
-In a `Nodeflow`, the set of edges between layers is known as a `block`.
+Layers are equivlent to the number of hops in this case.
 
 What `opt` calls `n_layers` is the `k` number used in the model.
 
+
+![The NodeFlow object (source https://github.com/dmlc/dgl/issues/368)](figures/nodeflow.png)
+
+
+* * *
+
+
+The following code can be used to sample k-hop ego-graphs from the graph.
+For visualisation purposes, consider a small k.
+
 ```python
-k = 3
+k = 4
 ```
 
 ```python
@@ -523,24 +415,7 @@ sampler = dgl.contrib.sampling.NeighborSampler(g, 256, 5,
                                                num_hops=k, shuffle=True)    
 ```
 
-<!-- #region -->
-The resultant node flow would look something like this:
-
-![The NodeFlow object](figures/nodeflow.png)
-
-
-A node flow, in this case, is a directional graph representing all sampled k-hop ego graphs.
-
-Each layer of the flow represents another hop in the ego graph.
-    
-
-<!-- #endregion -->
-
-* * * 
-
-
-
-**Now, lets look at some specific ego graphs:**
+## A look at some specific ego-graphs
 
 
 First, get a list of all edges in the ego graph for some `start` node, alongside their block number:
@@ -570,7 +445,7 @@ node_flow = sampler.fetch(1)[0]
 get_edges_from_flow(node_flow,1,k)[0:5]
 ```
 
-**Now, visualise these ego-graphs**
+Now, visualise the ego-graphs:
 
 ```python
 """
@@ -585,6 +460,9 @@ k:
 Returns: None
 """
 def plot_ego_graph(nf,start,k):
+    if not plot_graphs:
+        return
+
     # adapted from https://plotly.com/python/network-graphs/
     edges = get_edges_from_flow(nf,start,k)
     
@@ -681,240 +559,300 @@ plot_ego_graph(node_flow,1,k)
 ```
 
 ```python
-plot_ego_graph(node_flow,9,k)
+plot_ego_graph(node_flow,2,k)
 ```
 
 ```python
 plot_ego_graph(node_flow,20,k)
 ```
 
-# 4. The Encoder and Discriminator in greater detail
+# The Encoder and Discriminator
 
 
 *The below code has been adapted from `models/dgi.py`.*
 
 
-The encoder is trained as a GAN. It produces both "real" and "fake" node embeddings for a discriminator which then tries to guess which is which.
+The encoder is trained as a GAN. It produces both real (positive) and fake (negative) node embeddings for a discriminator which then tries to guess which is which.
 
 ```python
 class Encoder(nn.Module):
     def __init__(self, g, in_feats, n_hidden, n_layers, activation, dropout):
         super(Encoder, self).__init__()
+        
         self.g = g
-        #self.conv = GCN(g, in_feats, n_hidden, n_hidden, n_layers, activation, dropout)
         self.conv = GIN(g, n_layers + 1, 1, in_feats, n_hidden, n_hidden, dropout, True, 'sum', 'sum')
-    
+
     def forward(self, features, corrupt=False):
         if corrupt:
             perm = torch.randperm(self.g.number_of_nodes())
             features = features[perm]
         features = self.conv(features)
         return features
+
 ```
 
-The corrupt flag of `forward()` is used to generate "fake output" for use for training the discriminator.
-In the paper, they refer to this fake output as the `negative ego graph`.
+The corrupt flag of `forward()` is used to generate the fake output (the *negative ego graph*).
+
+This is the EGI discriminator:
 
 ```python
-class Discriminator(nn.Module):
-    def __init__(self, n_hidden):
-        super(Discriminator, self).__init__()
-        self.weight = nn.Parameter(torch.Tensor(n_hidden, n_hidden))
-        self.reset_parameters()
+class SubGDiscriminator(nn.Module):
+    def __init__(self, g, in_feats, n_hidden, n_layers = 2):
+        super(SubGDiscriminator, self).__init__()
+        self.g = g
+        
+        self.dc_layers = nn.ModuleList()
+        
+        for i in range(n_layers):
+            self.dc_layers.append(GNNDiscLayer(in_feats, n_hidden))
+        
+        self.linear = nn.Linear(in_feats + 2 * n_hidden, n_hidden, bias = True)
+        self.in_feats = in_feats
+        self.U_s = nn.Linear(n_hidden, 1)
 
-    def uniform(self, size, tensor):
-        bound = 1.0 / math.sqrt(size)
-        if tensor is not None:
-            tensor.data.uniform_(-bound, bound)
+        
+    def edge_output(self, edges):
+        return {'h': torch.cat([edges.src['root'], edges.src['m'], edges.dst['x']], dim=1)}
 
-    def reset_parameters(self):
-        size = self.weight.size(0)
-        self.uniform(size, self.weight)
+    def find_common(self, layer_nid, nf):
+        reverse_nodes = set()
+        for i in range(nf.num_blocks):
+            u, v = self.g.find_edges(nf.block_parent_eid(i))
+            reverse_nodes.update(u.tolist())
+            reverse_nodes.update(v.tolist())
+            
+        layer_nid = set(layer_nid.tolist())
+        
+        return torch.tensor(list(layer_nid.intersection(reverse_nodes)))
 
-    def forward(self, features, summary):
-        features = torch.matmul(features, torch.matmul(self.weight, summary))
-        return features
+    def forward(self, nf, emb, features):
+        reverse_edges = []
+        for i in range(nf.num_blocks):
+
+            u,v = self.g.find_edges(nf.block_parent_eid(i))
+            reverse_edges += self.g.edge_ids(v,u).numpy().tolist()
+            
+            
+        small_g = self.g.edge_subgraph( reverse_edges)
+        small_g.ndata['root'] = emb[small_g.ndata['_ID']]
+        small_g.ndata['x'] = features[small_g.ndata['_ID']]
+        small_g.ndata['m']= torch.zeros_like(emb[small_g.ndata['_ID']])
+
+        edge_embs = []
+        for i in range(nf.num_blocks)[::-1]:
+
+            v = small_g.map_to_subgraph_nid(nf.layer_parent_nid(i+1))
+
+            uid = small_g.out_edges(v, 'eid')
+
+            if i+1 == nf.num_blocks:
+                h = self.dc_layers[0](small_g, v, uid, 1)
+            else:
+                h = self.dc_layers[0](small_g, v, uid, 2)
+
+            edge_embs.append(self.U_s(F.relu(self.linear(h))))
+        return edge_embs
+
+
 ```
 
 These are trained together as a GAN like so:
     
-For this example, we consider the `DGI` version of the encoder.
+This example considers the `SubGI` version of the model, but other versions are also given:
 
 ```python
-class DGI(nn.Module):
-    def __init__(self, g, in_feats, n_hidden, n_layers, activation, dropout):
-        super(DGI, self).__init__()
+class SubGI(nn.Module):
+    def __init__(self, g, in_feats, n_hidden, n_layers, activation, dropout, pretrain=None):
+        super(SubGI, self).__init__()
+        
+        self.encoder = Encoder(g, in_feats, n_hidden, n_layers, activation, dropout)
+       
         self.g = g
+
+        self.subg_disc = SubGDiscriminator(g, in_feats, n_hidden) # Discriminator
+        
+        self.loss = nn.BCEWithLogitsLoss()
         self.in_feats = in_feats
         self.n_hidden = n_hidden
         self.n_layers = n_layers
         self.activation = activation
         self.dropout = dropout
-        self.encoder = Encoder(g, in_feats, n_hidden, n_layers, activation, dropout)
-        self.discriminator = Discriminator(n_hidden)
-        self.loss = nn.BCEWithLogitsLoss()
+        if pretrain is not None:
+            print("Loaded pre-train model: {}".format(pretrain) )
+            self.load_state_dict(torch.load(pretrain))
     
     def reset_parameters(self):
         self.encoder = Encoder(self.g, self.in_feats, self.n_hidden, self.n_layers, self.activation, self.dropout)
-        self.discriminator = Discriminator(self.n_hidden)
+        self.encoder.conv.g = self.g
+        self.subg_disc = SubGDiscriminator(self.g, self.in_feats, self.n_hidden, self.model_id)
         self.loss = nn.BCEWithLogitsLoss()
 
-    def forward(self, features):
-        # features = self.g.ndata['features']
+    def forward(self, features, nf):
         positive = self.encoder(features, corrupt=False)
-        negative = self.encoder(features, corrupt=True)
-        summary = torch.sigmoid(positive.mean(dim=0))
+        
+        perm = torch.randperm(self.g.number_of_nodes())
+        negative = positive[perm]
 
-        positive = self.discriminator(positive, summary)
-        negative = self.discriminator(negative, summary)
 
-        l1 = self.loss(positive, torch.ones_like(positive))
-        l2 = self.loss(negative, torch.zeros_like(negative))
+        positive_batch = self.subg_disc(nf, positive, features)
 
-        return l1 + l2
+        negative_batch = self.subg_disc(nf, negative, features)
+
+        E_pos, E_neg, l = 0.0, 0.0, 0.0
+        pos_num, neg_num = 0, 0
+        
+        for positive_edge, negative_edge in zip(positive_batch, negative_batch):
+
+            E_pos += get_positive_expectation(positive_edge, 'JSD', average=False).sum()
+            pos_num += positive_edge.shape[0]
+
+            E_neg += get_negative_expectation(negative_edge, 'JSD', average=False).sum()
+            neg_num += negative_edge.shape[0]
+
+            l += E_neg - E_pos
+
+        return E_neg / neg_num - E_pos / pos_num
+    
+    # TODO: this was never actually fully implemented?
+    def train_model(self):
+        self.train()
+        cur_loss = []
+        
+        for nf in self.train_sampler:
+
+            self.optimizer.zero_grad()
+            l = self.forward(self.features, nf)
+            l.backward()
+            cur_loss.append(l.item())
+
+            self.optimizer.step()
+
+        return np.mean(cur_loss)
+
 ```
 
-# 4. Training
-
-
-## 4.1 Airport discriminator
-
-```python
-## 4.2 Training
-```
-
-# 5. Results
+# Training
 
 ```python
 """
-Train the embedder
+For a given graph, create a tensor of nodes to node degrees.
+
+graph: A DGL graph
+opts: The model options
+
+Return: a Tensor with the shape (number_of_nodes,max_degree). 
+
+    For a node n with degree d, this tensor contains a 1 
+    in position feature[n][d], and a 0 otherwise.
+....
 """
-def train_embedder(opts,dgi,dgi_optimizer,cnt_wait,best,best_t,dur,g):
-    for epoch in range(opts.n_dgi_epochs):
-        train_sampler = dgl.contrib.sampling.NeighborSampler(g, 256, 5,
-                                                       neighbor_type='in', num_workers=1,
-                                                       num_hops=args.n_layers + 1, shuffle=True)
+def degree_bucketing(graph, opts, degree_emb=None, max_degree = 10):
+    
+    max_degree = opts.n_hidden
+    features = torch.zeros([graph.number_of_nodes(), max_degree])
 
-        dgi.train()
-
-        if epoch >= 3:
-          t0 = time.time()
-
-        loss = 0.0
-
-        # VGAE mode
-        #if args.model_type == 1:
-        #   dgi.optimizer = dgi_optimizer
-        #   dgi.train_sampler = train_sampler
-        #   dgi.features = features
-        #   loss = dgi.train_model()
-
-
-        # EGI mode
-        if args.model_type == 2:
-            for nf in train_sampler:
-              dgi_optimizer.zero_grad()
-              l = dgi(features, nf)
-              l.backward()
-              loss += l
-              dgi_optimizer.step()
-
-        # DGI mode
-        elif args.model_type == 0:
-          dgi_optimizer.zero_grad()
-          loss = dgi(features)
-          loss.backward    
-          dgi_optimizer.step()
-
-        if loss < best:
-            best = loss
-            best_t = epoch
-            cnt_wait = 0
-            torch.save(dgi.state_dict(), 'best_classification_{}.pkl'.format(args.model_type))
-        else:
-          cnt_wait += 1
-
-        if cnt_wait == args.patience:
-          print('Early stopping!')
-          return
-
-        if epoch >= 3:
-          dur.append(time.time() - t0)
-
-
-        classifier = create_classifier()
-        train_classifier(classifier)
+    for i in range(graph.number_of_nodes()):
+        try:
+            features[i][min(graph.in_degree(i), max_degree-1)] = 1
+        except:
+            features[i][0] = 1
+    return features
 ```
+
+Train the encoder:
 
 ```python
-for epoch in range(args.n_dgi_epochs):
+degree_emb = nn.Parameter(torch.FloatTensor(np.random.normal(0, 1, [100, opts.n_hidden])), requires_grad=False)
+
+features = degree_bucketing(g, opts, degree_emb)
+in_feats = features.shape[1]
+
+n_classes = labels.max().item() + 1
+n_edges = g.number_of_edges()
 
 
+# Is this going to be ran on the GPU?
+if opts.gpu < 0:
+    cuda = False
 
-  # create classifier model
-  classifier = MultiClassifier(args.n_hidden, n_classes)
-  if cuda:
-      classifier.cuda()
+else:
+    cuda = True
+    torch.cuda.set_device(opts.gpu)
+    features = features.cuda()
+    in_feats
+    labels = labels.cuda()
 
-  classifier_optimizer = torch.optim.Adam(classifier.parameters(),
-                                          lr=args.classifier_lr,
-                                          weight_decay=args.weight_decay)
+    
+# initialise encoder discriminator duo
+encoder = SubGI(g,
+            in_feats,
+            opts.n_hidden,
+            opts.n_layers,
+            nn.PReLU(opts.n_hidden),
+            opts.dropout)
+
+if cuda:
+    encoder = encoder.cuda()
+    
+encoder_optimizer = torch.optim.Adam(encoder.parameters(),
+                              lr=opts.dgi_lr,
+                              weight_decay=opts.weight_decay)
+
+# some summary statistics
+cnt_wait = 0
+best = 1e9
+best_t = 0
+dur = []
+
+# hacky hack to make DGL happy 
+g.ndata['features'] = features.to(torch.device('cpu')) 
+
+# start training
+for epoch in tqdm(range(opts.n_dgi_epochs)):
+    
+    # initialise ego-graph sampler
+    train_sampler = dgl.contrib.sampling.NeighborSampler(g, 256, 5,
+                                            neighbor_type='in', num_workers=1,
+                                            num_hops=opts.n_layers + 1, shuffle=True)
+    
+    # Enable training mode for model
+    encoder.train()
+    
+    
+    
+    if epoch >= 3:
+        t0 = time.time()
+
+    
+    loss = 0.0
+    
+    # train based on features and ego-graphs
+    for nf in train_sampler:
+        encoder_optimizer.zero_grad()
+        l = encoder.forward(features,nf) # forward propogate
+        l.backward()
+        loss += l
+        encoder_optimizer.step()
 
 
+    if loss < best:
+        best = loss
+        best_t = epoch
+        cnt_wait = 0
+        torch.save(encoder_optimizer.state_dict(), 'best_classification_{}.pkl'.format(opts.model_type))
+    else:
+      cnt_wait += 1
 
-  # flags used for transfer learning
-  if args.data_src != args.data_id:
-      pass
-  else:
-      dgi.load_state_dict(torch.load('best_classification_{}.pkl'.format(args.model_type)))
+    if cnt_wait == opts.patience:
+      print('Early stopping!')
+      break
 
-  with torch.no_grad():
-      if args.model_type == 1:
-          _, embeds, _ = dgi.forward(features)
-      elif args.model_type == 2:
-          embeds = dgi.encoder(features, corrupt=False)
-      elif args.model_type == 0:
-          embeds = dgi.encoder(features)
-      else:
-          dgi.eval()
-          test_sampler = dgl.contrib.sampling.NeighborSampler(g, g.number_of_nodes(), -1,
-                                                                  neighbor_type='in', num_workers=1,
-                                                                  add_self_loop=False,
-                                                                  num_hops=args.n_layers + 1, shuffle=False)
-          for nf in test_sampler:
-              nf.copy_from_parent()
-              embeds = dgi.encoder(nf, False)
-              print("test flow")
-
-  embeds = embeds.detach()
-
-  dur = []
-  for epoch in range(args.n_classifier_epochs):
-      classifier.train()
-      if epoch >= 3:
-          t0 = time.time()
-
-      classifier_optimizer.zero_grad()
-      preds = classifier(embeds)
-      loss = F.nll_loss(preds[train_mask], labels[train_mask])
-      # embed()
-      loss.backward()
-      classifier_optimizer.step()
-
-      if epoch >= 3:
-          dur.append(time.time() - t0)
-      #acc = evaluate(classifier, embeds, labels, train_mask)
-      #acc = evaluate(classifier, embeds, labels, val_mask)
-      #print("Epoch {:05d} | Time(s) {:.4f} | Loss {:.4f} | Accuracy {:.4f} | "
-      #      "ETputs(KTEPS) {:.2f}".format(epoch, np.mean(dur), loss.item(),
-      #                                    acc, n_edges / np.mean(dur) / 1000))
-
-  # print()
-  acc = evaluate(classifier, embeds, labels, test_mask)
-
-  return acc;
+    if epoch >= 3:
+      dur.append(time.time() - t0)
 
 ```
+
+Train the classifier:
 
 ```python
 def evaluate(model, features, labels, mask):
@@ -927,15 +865,56 @@ def evaluate(model, features, labels, mask):
         correct = torch.sum(indices == labels)
         return correct.item() * 1.0 / len(labels)
 
+
 ```
 
+```python
+classifier = MultiClassifier(opts.n_hidden, n_classes)
+classifier_optimizer = torch.optim.Adam(classifier.parameters(),
+                                        lr=opts.classifier_lr,
+                                        weight_decay=opts.weight_decay)
+
+# now that training is done, the discriminator is no longer needed
+encoder = encoder.encoder
+
+if cuda:
+    classifier.cuda()
+
+embeds = encoder(features, corrupt=False)
+    
+embeds = embeds.detach()
+    
+dur = []
+
+classifier.train() # enable training mode
+
+for epoch in tqdm(range(opts.n_classifier_epochs)):
+    
+    if epoch >= 3:
+        t0 = time.time()
+
+    classifier_optimizer.zero_grad() # reset gradient
+    
+    preds = classifier(embeds)
+    
+    loss = F.nll_loss(preds[train_mask], labels[train_mask])
+    
+    loss.backward()
+    classifier_optimizer.step()
+
+    if epoch >= 3:
+        dur.append(time.time() - t0)
+        
+    accuracy = evaluate(classifier, embeds, labels, test_mask)
+
+    print("Epoch {:05d} | Time(s) {:.4f} | Loss {:.4f} | Accuracy {:.4f} | "
+          "ETputs(KTEPS) {:.2f}".format(epoch, np.mean(dur), loss.item(),
+                                        accuracy, n_edges / np.mean(dur) / 1000))
+
+    
+
+```
 
 ```python
-# Run the model multiple times, and print the average and standard deviation of the results
-test_results = []
 
-for runs in tqdm(range(10)):
-  test_results.append(run_model(opts));
-
-print("Test Accuracy {:.4f}, std {:.4f}".format(np.mean(test_results), np.std(test_results)))
 ```
