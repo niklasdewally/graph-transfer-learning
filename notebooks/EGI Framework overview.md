@@ -20,7 +20,7 @@ jupyter:
 
 ```python
 # Change this to disable plotting - speeds up execution time!
-plot_graphs = True
+plot_graphs = False
 ```
 
 <!-- #region -->
@@ -103,8 +103,8 @@ opts = SimpleNamespace(
     dropout=0.0,
     dgi_lr=0.001,
     classifier_lr=1e-2,
-    n_dgi_epochs=100,
-    n_classifier_epochs=100,
+    n_dgi_epochs=500,
+    n_classifier_epochs=500,
     n_hidden=32,
     n_layers=5,
     weight_decay=0.,
@@ -113,7 +113,6 @@ opts = SimpleNamespace(
     self_loop=True,
     model_type=2,
     graph_type="DD"
-
 )
 ```
 
@@ -387,7 +386,7 @@ The set of all sampled k-hop-ego-graphs is represented as a `NodeFlow`.
 
 In a `NodeFlow`, the set of edges between layers is known as a `block`.
 
-Layers are equivlent to the number of hops in this case.
+Layers contain the nodes reachable from the seed nodes after a certain number of hops.
 
 What `opt` calls `n_layers` is the `k` number used in the model.
 

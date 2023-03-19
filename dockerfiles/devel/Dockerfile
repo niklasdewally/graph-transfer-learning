@@ -11,7 +11,7 @@ RUN mkdir -p /workspace/mount
 RUN pip install ipywidgets plotly
 
 # Jupyter extensions
-RUN pip install -e jupyter_contrib_nbextensions
+RUN pip install jupyter_contrib_nbextensions
 RUN jupyter contrib nbextension install --user
 
 
