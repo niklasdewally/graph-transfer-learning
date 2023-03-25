@@ -1,4 +1,5 @@
 import networkx as nx
+import torch
 from dgl import DGLGraphStale
 
 class GraphDataset():
@@ -43,7 +44,7 @@ class GraphDataset():
     
         """
 
-        _read_files(edges_path,label_path)
+        self._read_files(edges_path,labels_path)
 
 
     def _read_files(self,edges_path,label_path):

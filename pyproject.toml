@@ -6,4 +6,5 @@ dependencies = []
 
 [tool.setuptools.packages.find]
 where = ["src"]  # ["."] by default
+include = ["*"]
 

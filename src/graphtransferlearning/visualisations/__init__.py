@@ -1,4 +1,4 @@
 """
 Visualiations of graphs
 """
-from .airport import plot_airports
+from .airports import plot_airports

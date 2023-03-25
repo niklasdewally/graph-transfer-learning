@@ -2,7 +2,7 @@ import networkx as nx
 import plotly.graph_objects as go
 
 
-def plot_airport_graph(G,labels):
+def plot_airports(G,labels):
     """
     Plot and show a given graph in the airport dataset.
     Colours the graph according to airport popularity.

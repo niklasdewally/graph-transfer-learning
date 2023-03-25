@@ -1,6 +1,6 @@
 # Code adapted from https://github.com/GentleZhu/EGI/
 
-import pytorch 
+import torch
 import numpy as np
 from sklearn.manifold import SpectralEmbedding
 
