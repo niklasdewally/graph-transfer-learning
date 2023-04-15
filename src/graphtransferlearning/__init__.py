@@ -2,5 +2,5 @@ import graphtransferlearning.dataset
 import graphtransferlearning.features
 import graphtransferlearning.visualisations
 import graphtransferlearning.training
-
+from .graph_generators import generate_forest_fire, generate_barbasi, add_structural_labels
 
