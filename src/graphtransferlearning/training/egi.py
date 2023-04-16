@@ -152,7 +152,7 @@ def train_egi_encoder(dgl_graph,
         loss = 0.0
         
         # train based on features and ego graphs around specifc egos
-        for ego in sample(list(dgl_graph.nodes()),10):
+        for ego in sample(list(dgl_graph.nodes()),256):
 
             optimizer.zero_grad()
 
