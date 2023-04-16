@@ -4,7 +4,7 @@ A development container for this project. Automatically opens a jupyter notebook
 Run from the root directory of this repository:
 
 ```
-docker build docker/ -t graph-transfer-learning/devel:v2 -t graph-transfer-learning/devel:latest
+docker build docker/ -t graph-transfer-learning/devel:v3
 ```
 
 

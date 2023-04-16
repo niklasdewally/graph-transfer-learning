@@ -7,7 +7,7 @@ def degree_bucketing(graph, max_degree = 10):
     Create a feature tensor for a graph's nodes using degree bucketing.
 
     Args: 
-        graph (DGLGraphStale): A DGL graph
+        graph (DGLGraph): A DGL graph
 
         max_degree (int): The maximum degree of a node. Nodes with degrees
             greater than this will have their degree value truncated to max_degree.
@@ -27,7 +27,7 @@ def degree_bucketing(graph, max_degree = 10):
     for i in range(graph.number_of_nodes()):
         try:
 
-            features[i][min(graph.in_degree(i), max_degree-1)] = 1
+            features[i][min(graph.in_degrees(i), max_degree-1)] = 1
 
         except:
             features[i][0] = 1

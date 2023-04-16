@@ -26,16 +26,18 @@ def spectral_embedding(graph,n_components):
 
     """
 
-    A = np.zeros([graph.number_of_nodes(), graph.number_of_nodes()])
-    a,b = graph.all_edges()
-    
-    # add edges to a numpy array
-    for id_a, id_b in zip(a.numpy().tolist(), b.numpy().tolist()):
-        A[id_a, id_b] = 1
+    raise NotImplementedError("This code has yet to be ported to the latest DGL version")
 
-    embedding = SpectralEmbedding(n_components=args.n_hidden)
+    #A = np.zeros([graph.number_of_nodes(), graph.number_of_nodes()])
+    #a,b = graph.all_edges()
+    #
+    ## add edges to a numpy array
+    #for id_a, id_b in zip(a.numpy().tolist(), b.numpy().tolist()):
+    #    A[id_a, id_b] = 1
 
-    features = torch.FloatTensor(embedding.fit_transform(A))
+    #embedding = SpectralEmbedding(n_components=args.n_hidden)
 
-    return features
+    #features = torch.FloatTensor(embedding.fit_transform(A))
+
+    #return features
 

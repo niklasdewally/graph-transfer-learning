@@ -2,6 +2,7 @@ import torch.nn
 import torch.nn as nn
 import math
 import torch.nn.functional as F
+import dgl
 from dgl.nn.pytorch import GraphConv, SAGEConv, GINConv
 from dgl.nn.pytorch.glob import SumPooling, AvgPooling, MaxPooling
 import numpy as np
@@ -13,9 +14,11 @@ class EGI(nn.Module):
 
     The node encoder for this EGI model can be retrieved with .encoder.
 
+    This code is primarily adapted from the reference implementation found at
+    https://github.com/GentleZhu/EGI.
 
     Args:
-        g: The input graph, as a DGLGraphStale.
+        g: The input graph, as a DGLGraph.
         in_feats: The input feature size (as a tensor).
         n_hidden: The number of hidden dimensions in the model.
         n_layers: The number of layers in the model.
@@ -35,7 +38,7 @@ class EGI(nn.Module):
         self.g = g
 
         self.subg_disc = _SubGDiscriminator(g, in_feats, n_hidden) # Discriminator
-        
+
         self.loss = nn.BCEWithLogitsLoss()
         self.in_feats = in_feats
         self.n_hidden = n_hidden
@@ -49,7 +52,7 @@ class EGI(nn.Module):
         self.subg_disc = SubGDiscriminator(self.g, self.in_feats, self.n_hidden, self.model_id)
         self.loss = nn.BCEWithLogitsLoss()
 
-    def forward(self, features, nf):
+    def forward(self, features, ego_node):
         """
         Returns the loss of the model.
 
@@ -58,16 +61,17 @@ class EGI(nn.Module):
 
         positive = self.encoder(features, corrupt=False)
         
+        # generate negative edges through random permutation
         perm = torch.randperm(self.g.number_of_nodes())
         negative = positive[perm]
 
+        positive_batch = self.subg_disc(ego_node, positive, features)
 
-        positive_batch = self.subg_disc(nf, positive, features)
-
-        negative_batch = self.subg_disc(nf, negative, features)
+        negative_batch = self.subg_disc(ego_node, negative, features)
 
         E_pos, E_neg, l = 0.0, 0.0, 0.0
         pos_num, neg_num = 0, 0
+
         
         for positive_edge, negative_edge in zip(positive_batch, negative_batch):
 
@@ -78,6 +82,9 @@ class EGI(nn.Module):
             neg_num += negative_edge.shape[0]
 
             l += E_neg - E_pos
+
+        assert(pos_num != 0)
+        assert(neg_num != 0)
 
         return E_neg / neg_num - E_pos / pos_num
     
@@ -112,45 +119,106 @@ class _SubGDiscriminator(nn.Module):
     """
     def __init__(self, g, in_feats, n_hidden, n_layers = 2):
         super(_SubGDiscriminator, self).__init__()
+
         self.g = g
-        
+        self.k = n_layers
+
+        self.in_feats = in_feats
+
+        # discriminator convolutional layers
+        # used to encode neighbor embeddings
         self.dc_layers = nn.ModuleList()
         
         for i in range(n_layers):
             self.dc_layers.append(GNNDiscLayer(in_feats, n_hidden))
-        
+       
+        # these layers consist of the scoring function
         self.linear = nn.Linear(in_feats + 2 * n_hidden, n_hidden, bias = True)
-        self.in_feats = in_feats
         self.U_s = nn.Linear(n_hidden, 1)
 
-    def forward(self, nf, emb, features):
-        reverse_edges = []
-        for i in range(nf.num_blocks):
+    def forward(self, ego_node, emb, features):
 
-            u,v = self.g.find_edges(nf.block_parent_eid(i))
-            reverse_edges += self.g.edge_ids(v,u).numpy().tolist()
+        # k-hop ego graph.
+        ego_graph,n = dgl.khop_in_subgraph(self.g,ego_node,self.k,store_ids=True)
+
+        if torch.cuda.is_available():
+            ego_graph = ego_graph.to('cuda:0')
+
+        ego_eg = n.item() # ego-node relative to ego graph
+
+        # idk tbh - used by discriminator
+        ego_graph.ndata['root'] = emb[ego_graph.ndata['_ID']]
+        ego_graph.ndata['x'] = features[ego_graph.ndata['_ID']]
+        ego_graph.ndata['m']= torch.zeros_like(emb[ego_graph.ndata['_ID']])
+
+        edge_scores = []
+
+        # Sample edges using breadth-first-search, starting from the ego.
+        # Returns a list of "edge frontiers". Each edge frontier will be
+        # another hop in the ego graph.
+        frontiers = dgl.bfs_edges_generator(ego_graph,ego_eg,reverse=True)
+
+        max_hop = len(frontiers)
+
+        # go over hops in ego-graph, starting from outside
+        for i in range(max_hop)[::-1]:
+            edges = frontiers[i]
+
+            if torch.cuda.is_available():
+                edges = edges.to('cuda:0')
             
-            
-        small_g = self.g.edge_subgraph( reverse_edges)
-        small_g.ndata['root'] = emb[small_g.ndata['_ID']]
-        small_g.ndata['x'] = features[small_g.ndata['_ID']]
-        small_g.ndata['m']= torch.zeros_like(emb[small_g.ndata['_ID']])
+            # get nodes in the edges
+            us,vs = ego_graph.find_edges(edges)
 
-        edge_embs = []
-        for i in range(nf.num_blocks)[::-1]:
-
-            v = small_g.map_to_subgraph_nid(nf.layer_parent_nid(i+1))
-
-            uid = small_g.out_edges(v, 'eid')
-
-            if i+1 == nf.num_blocks:
-                h = self.dc_layers[0](small_g, v, uid, 1)
+            # TODO: not sure if ive reversed the ego-graph right.
+            # Get edge score
+            if i+1 == max_hop:
+                h = self.dc_layers[0](ego_graph,vs,us, 2)
+                edge_scores.append(self.U_s(F.relu(self.linear(h))))
             else:
-                h = self.dc_layers[0](small_g, v, uid, 2)
+                h = self.dc_layers[0](ego_graph,vs,us, 1)
+                edge_scores.append(self.U_s(F.relu(self.linear(h))))
 
-            edge_embs.append(self.U_s(F.relu(self.linear(h))))
 
-        return edge_embs
+        # return total scores
+        return edge_scores
+
+
+       # # for every hop in the ego-graph
+       # for i in range(nf.num_blocks):
+
+       #     # pick nodes from an edge
+       #     u,v = self.g.find_edges(nf.block_parent_eid(i))
+
+       #     # add the reverse edge (WHY reverse?) to a list
+       #     reverse_edges += self.g.edge_ids(v,u).numpy().tolist()
+       #     
+       # # induce a subgraph based on these edges
+       # small_g = self.g.edge_subgraph( reverse_edges)
+
+       # # ???
+       # small_g.ndata['root'] = emb[small_g.ndata['_ID']]
+       # small_g.ndata['x'] = features[small_g.ndata['_ID']]
+       # small_g.ndata['m']= torch.zeros_like(emb[small_g.ndata['_ID']])
+
+       # edge_embs = []
+       # 
+       # go through ego-graph hop edges in reverse
+       # for i in range(nf.num_blocks)[::-1]:
+
+            # get edges on given layer ids' in ego_graph
+       #     v = small_g.map_to_subgraph_nid(nf.layer_parent_nid(i+1))
+       #     uid = small_g.out_edges(v, 'eid')
+
+       #     if i+1 == nf.num_blocks:
+       #         h = self.dc_layers[0](small_g, v, uid, 1)
+       #     else:
+       #         h = self.dc_layers[0](small_g, v, uid, 2)
+
+    
+       #     edge_embs.append(self.U_s(F.relu(self.linear(h))))
+
+       # return edge_embs
 
 
 # Functions below copied verbatim from original egi code, for use in this model
@@ -447,35 +515,31 @@ class GNNDiscLayer(nn.Module):
         super(GNNDiscLayer, self).__init__()
         self.fc = nn.Linear(in_feats, n_hidden)
         self.layer_1 = True
-        # self.self_fc = nn.Linear(in_feats, n_hidden)
 
-    
-    #def edge_update(self, edges):
-    #    pass
     def reduce(self, nodes):
-        return {'m': F.relu(self.fc(nodes.data['x']) + nodes.mailbox['m'].mean(dim=1) ), 'root': nodes.mailbox['root'].mean(dim=1)}
+        return {'m': F.relu(self.fc(nodes.data['x']) + nodes.mailbox['m'].mean(dim=1) )
+               ,'root':nodes.mailbox['root'].mean(dim=1)}
 
     def msg(self, edges):
         if self.layer_1:
-            return {'m': self.fc(edges.src['x']), 'root': edges.src['root']}
+            return {'m': self.fc(edges.src['x'])
+                   ,'root': edges.src['root']}
         else:
-            # embed()
-            return {'m': self.fc(edges.src['m']), 'root': edges.src['root']}
+            return {'m': self.fc(edges.src['m'])
+                   ,'root': edges.src['root']}
     
     def edges(self, edges):
-        # embed()
         return {'output':torch.cat([edges.src['root'], edges.src['m'], edges.dst['x']], dim=1)}
 
     def forward(self, g, v, edges, depth=1):
-        #self.layer_nodes = v
-        #self.g = g
+
         if depth == 1:
             self.layer_1 = True
         else:
             self.layer_1 = False
+
         g.apply_edges(self.edges, edges)
-        # g = g.local_var()
-        #embed()
+
         g.push(v, self.msg, self.reduce)
         
         return g.edata.pop('output')[edges]

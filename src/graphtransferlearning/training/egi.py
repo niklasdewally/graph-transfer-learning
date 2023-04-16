@@ -2,9 +2,11 @@ from graphtransferlearning.features import degree_bucketing
 from graphtransferlearning.models import EGI
 import torch
 import torch.nn as nn
+from torch.profiler import profile, record_function, ProfilerActivity
 import dgl
 import time
 from tqdm import tqdm
+from random import sample
 
 def train_egi_encoder(dgl_graph,
                       gpu=-1,
@@ -29,7 +31,7 @@ def train_egi_encoder(dgl_graph,
     It does this by considering k-hop ego graphs.
 
     Args:
-        dgl_graph: The input graph, as a DGLGraphStale.
+        dgl_graph: The input graph, as a DGLGraph.
 
         gpu: The gpu device to use. Defaults to -1, which trains on the CPU.
 
@@ -72,6 +74,7 @@ def train_egi_encoder(dgl_graph,
 
     """
 
+
     # input validation
     valid_feature_modes = ['degree_bucketing']
     valid_optimisers = ['adam']
@@ -103,6 +106,7 @@ def train_egi_encoder(dgl_graph,
         cuda = True
         torch.cuda.set_device(gpu)
         features = features.cuda()
+        dgl_graph = dgl_graph.to(torch.device('cuda',gpu))
 
 
     in_feats = features.shape[1]
@@ -137,11 +141,7 @@ def train_egi_encoder(dgl_graph,
     # start training
     for epoch in tqdm(range(n_epochs)):
         
-        # initialise ego-graph sampler
-        ego_graph_sampler = dgl.contrib.sampling.NeighborSampler(dgl_graph, 256, 5,
-                                                neighbor_type='in', num_workers=1,
-                                                num_hops=k, shuffle=True)
-        
+            
         # Enable training mode for model
         model.train()
         
@@ -151,22 +151,26 @@ def train_egi_encoder(dgl_graph,
         
         loss = 0.0
         
-        # train based on features and ego-graphs
-        for nf in ego_graph_sampler:
-            optimizer.zero_grad()
-            l = model(features,nf) # forward propagate to find loss
-            l.backward()
-            loss += l
-            optimizer.step()
+        # train based on features and ego graphs around specifc egos
+        for ego in sample(list(dgl_graph.nodes()),10):
 
+            optimizer.zero_grad()
+
+            l = model(features,ego) # forward propagate to find loss
+
+            l.backward()
+
+            loss += l
+
+            optimizer.step()
 
         if loss < best:
             best = loss
             best_t = epoch
 
 
-        if epoch >= 3:
-          dur.append(time.time() - t0)
+    if epoch >= 3:
+      dur.append(time.time() - t0)
 
     # save parameters for later fine-tuning if a save path is given
     if save_weights_to is not None:
