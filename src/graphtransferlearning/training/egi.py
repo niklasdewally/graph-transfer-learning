@@ -18,7 +18,8 @@ def train_egi_encoder(dgl_graph,
                       feature_mode='degree_bucketing',
                       optimiser='adam',
                       pre_train=None,
-                      save_weights_to=None):
+                      save_weights_to=None,
+                      writer=None):
 
 
     """
@@ -64,8 +65,14 @@ def train_egi_encoder(dgl_graph,
             For more information, see
             https://pytorch.org/tutorials/beginner/saving_loading_models.html.
 
+
         save_weights_to: A file path to save EGI model parameters for use in
             transfer learning.
+
+            Defaults to None.
+
+        writer: A torch.utils.tensorboard.SummaryWriter. Used to write loss to 
+            a tensor board.
 
             Defaults to None.
 
@@ -99,14 +106,10 @@ def train_egi_encoder(dgl_graph,
     features = degree_bucketing(dgl_graph,n_hidden_layers)
 
     # are we running on a gpu?
-    if gpu < 0:
-        cuda = False
+    device = 'cpu' if gpu < 0 else f"cuda:{gpu}"
 
-    else:
-        cuda = True
-        torch.cuda.set_device(gpu)
-        features = features.cuda()
-        dgl_graph = dgl_graph.to(torch.device('cuda',gpu))
+    features = features.to(device)
+    dgl_graph = dgl_graph.to(device)
 
 
     in_feats = features.shape[1]
@@ -120,8 +123,8 @@ def train_egi_encoder(dgl_graph,
                 n_layers,
                 nn.PReLU(n_hidden_layers),
                 )
-    if cuda:
-        model = model.cuda()
+    
+    model = model.to(device)
 
     # do transfer learning if we have pretrained weights
     if pre_train is not None:
@@ -135,8 +138,6 @@ def train_egi_encoder(dgl_graph,
 
     # some summary statistics
     best = 1e9
-    best_t = 0
-    dur = []
 
     # start training
     for epoch in tqdm(range(n_epochs)):
@@ -164,17 +165,17 @@ def train_egi_encoder(dgl_graph,
 
             optimizer.step()
 
-        if loss < best:
-            best = loss
-            best_t = epoch
 
+        if epoch >= 3 and writer is not None:
+            if writer:
+                writer.add_scalar('Epoch time',time.time() - t0 ,global_step=epoch)
 
-    if epoch >= 3:
-      dur.append(time.time() - t0)
+        if writer:
+            writer.add_scalar('Training Loss',loss,global_step=epoch)
 
     # save parameters for later fine-tuning if a save path is given
     if save_weights_to is not None:
-        print(f"Saving model parameters to {save_weights_to}")
+        print(f"Saving model parameters to {str(save_weights_to)}")
 
         torch.save(model.state_dict(), save_weights_to)
 
