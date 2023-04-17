@@ -7,7 +7,10 @@ Aim is to direct transfer labels from one to another.
 """
 import dgl
 import torch
+
 from torch.utils.tensorboard import SummaryWriter
+from sklearn.linear_model import SGDClassifier
+from sklearn.model_selection import train_test_split
 
 import graphtransferlearning as gtl
 
@@ -28,13 +31,14 @@ def do_run(k=2):
     p_backward = 0.3
 
 
-    # Hyper parameters
+    # Encoder hyper parameters
     lr = 0.01
     n_hidden_layers=256
     n_epochs=10
     weight_decay = 0.
     feature_mode='degree_bucketing'
     optimiser='adam'
+
 
     # Generate synthetic graphs
 
@@ -63,15 +67,32 @@ def do_run(k=2):
                   writer=writer
                   )
 
+
+    # Train source classifier
+    source_accuracy = 0;
+
+    barbasi_features = gtl.features.degree_bucketing(barbasi_dgl,n_hidden_layers).to(device)
+
+    # split into test and train nodes for classification
+
+    # Transfer to target graph - train target encoder
+
+    # Create target encoder (no finetuning)
+
+    # Create target classifier (no finetuning)
+    target_accuracy = 0;
+
+    # Write hyperparameters to tensorboard
     writer.add_hparams(
             {'k': k, 
              'lr': lr, 
-             '# Hidden Layers': n_hidden_layers, 
-             '# Epochs':n_epochs,
+             'Number of Hidden Layers': n_hidden_layers, 
+             'Number of Epochs':n_epochs,
              'Feature mode':feature_mode,
              'Optimiser':optimiser,
-             '# Nodes': n_nodes,},
-            {})
+             '# Nodes': n_nodes},
+            {'source/accuracy':source_accuracy,
+             'target/accuracy':target_accuracy})
 
 if __name__ == '__main__':
     do_run()
