@@ -146,38 +146,27 @@ class _SubGDiscriminator(nn.Module):
         # reverse all edges 
         reverse_edges = []
         # first two elements are in and out nodes
-
         for i,block in enumerate(blocks[2]):
             # get edges from the block
-            us,vs = self.g.find_edges(block.edata[dgl.EID])
+            us,vs = block.edges()
             reverse_edges += self.g.edge_ids(vs,us).tolist()
 
+        #?
         small_g = self.g.edge_subgraph(reverse_edges)
-        small_g
         small_g.ndata['root'] = emb[small_g.ndata['_ID']]
         small_g.ndata['x'] = features[small_g.ndata['_ID']]
         small_g.ndata['m']= torch.zeros_like(emb[small_g.ndata['_ID']])
 
-        # translate from small_g IDs to parent IDS (or reverse using .index(v))
-        small_g_nodes = small_g.ndata['_ID']
+
+        embed()
 
         edge_embs = []
         
         #go through ego-graph hop edges in reverse
         for i in range(len(blocks[2]))[::-1]:
 
-            # get edges on given layer ids' in parent graph
-            vs0 = blocks[2][i].dstnodes()
-
-            # convert to small_g node ids
-            # https://stackoverflow.com/a/71833292
-            vs = []
-            for v in vs0:
-                res = (small_g_nodes ==v).nonzero()
-                assert res.shape[0]>0,f"{v}"
-                vs.append(res[0])
-
-
+            # get edges on given layer ids' in ego_graph
+            vs = blocks[2][i].srcdata[dgl.NID]
             us = small_g.out_edges(vs, 'eid')
 
             if i == len(blocks[2]):
@@ -188,7 +177,7 @@ class _SubGDiscriminator(nn.Module):
     
             edge_embs.append(self.U_s(F.relu(self.linear(h))))
 
-        return edge_embs
+       # return edge_embs
         ##########
 
         ## k-hop ego graph.

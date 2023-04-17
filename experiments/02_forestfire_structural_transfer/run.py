@@ -26,7 +26,7 @@ from IPython import embed
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def do_run(k=2):
+def do_run(k=2,src_lr=0.1):
     """
     Perform a specific run of the model for a given set of hyperparameters.
     """
@@ -35,7 +35,7 @@ def do_run(k=2):
 
     # synthetic graph generation parameters
     n_nodes = 100
-    n_graphs = 40
+    n_graphs = 60
     ba_attached= 2
     p_forward = 0.4
     p_backward = 0.3
@@ -43,7 +43,7 @@ def do_run(k=2):
 
     # Encoder hyper parameters
     lr = 0.01
-    n_hidden_layers=10
+    n_hidden_layers=32
     n_epochs=40
     max_degree_in_feat = n_hidden_layers
     weight_decay = 0.
@@ -52,8 +52,6 @@ def do_run(k=2):
 
 
     # Generate synthetic graphs
-
-
 
     g = gtl.generate_forest_fire(n_nodes,p_forward,p_backward)
     g,classes = gtl.add_structural_labels(g,k)
@@ -79,12 +77,12 @@ def do_run(k=2):
         barbasi_dgl.append(dgl.from_networkx(g,node_attrs=['struct']).to(device))
 
 
-    barbassi_classes = classes.values()
+    barbasi_classes = torch.as_tensor(list(classes.values()))
 
     # Test-validate split
     shuffle(barbasi_dgl)
-    barbasi_dgl_val = barbasi_dgl[:n_graphs//10]
-    barbasi_dgl_train = barbasi_dgl[n_graphs//10:]
+    barbasi_dgl_val = barbasi_dgl[:20]
+    barbasi_dgl_train = barbasi_dgl[20:]
 
     print(f"Training EGI encoder on barbasi graphs")
 
@@ -103,6 +101,9 @@ def do_run(k=2):
                 ).to(device)
 
     optimizer= torch.optim.Adam(model.parameters(),lr = lr,weight_decay = weight_decay)
+    
+    # sample k hop ego-graphs with max 10 neighbors each hop
+    sampler = dgl.dataloading.NeighborSampler([10 for i in range(k)])
     for epoch in tqdm(range(n_epochs)):
         model.train()
 
@@ -110,32 +111,40 @@ def do_run(k=2):
 
         loss = 0.0
         
+            
         # train based on features and ego graphs around specific egos
         for i,g in enumerate(barbasi_dgl_train):
             optimizer.zero_grad()
-            for ego in sample(list(g.nodes()),n_nodes):
 
-                l = model(barbasi_train_feats[i],ego)
-                l.backward()
-                loss += l
+            features = barbasi_train_feats[i]
+            
+
+            # the sampler returns a list of blocks and involved nodes
+            # each block holds a set of edges from a source to destination
+            # each block is a hop in the greaph
+            blocks = sampler.sample(g,g.nodes())
+            l = model(features,blocks)
+
+            l.backward()
+            loss += l
 
                 
             optimizer.step()
 
-        writer.add_scalar(f"encoder/training-loss",loss,global_step=epoch)
+        writer.add_scalar(f"encoder/training-loss",loss/len(barbasi_dgl_train),global_step=epoch)
 
 
         # calculate validation loss
         model.eval()
         loss = 0.0
         for i,g in enumerate(barbasi_dgl_val):
-            for ego in sample(list(g.nodes()),n_nodes):
-
-                l = model(barbasi_train_feats[i],ego)
-                loss += l
+            blocks = sampler.sample(g,g.nodes())
+            features = barbasi_val_feats[i]
+            l = model(features,blocks)
+            loss += l
                 
 
-        writer.add_scalar(f"encoder/validation-loss",loss,global_step=epoch)
+        writer.add_scalar(f"encoder/validation-loss",loss/len(barbasi_dgl_val),global_step=epoch)
 
     ###############################
 
@@ -143,16 +152,15 @@ def do_run(k=2):
     # source classifier preparation
     encoder = model.encoder
 
-    barbasi_train_embeddings = encoder(barbasi_train_features).to(device)
-    barbasi_val_embeddings = encoder(barbasi_train_features).to(device)
-    # barbassi_classes defined earlier
+    barbasi_train_embeddings = [encoder(x).to(device)for x in barbasi_train_feats]
+    barbasi_val_embeddings = [encoder(x).to(device)for x in barbasi_val_feats]
+    # barbasi_classes defined earlier
 
     # Source classifier hyperparameters
-    src_n_epochs = 50
-    src_lr = 0.1
+    src_n_epochs = 100
 
     src_input_dim = max_degree_in_feat
-    src_n_classes = len(barbassi_classes.keys())
+    src_n_classes = len(barbasi_classes)
 
 
     # Train source classifier
@@ -166,19 +174,36 @@ def do_run(k=2):
     accuracy = Accuracy(task='multiclass',num_classes=src_n_classes).to(device)
 
 
+    # cross validate this, as structural labels are mostly unique across graphs
+    # cross-validate through a sliding window
+    validation_set_size = 5
+    validation_start = 0
+    validation_end = validation_start + validation_set_size
+    validation_range = range(validation_start,validation_end+1)
+
     for epoch in tqdm(range(src_n_epochs)):
+
         classifier.train()
+
 
         # train on each training graph
         total_loss = 0
         total_accuracy = 0 
 
         for i,emb in enumerate(barbasi_train_embeddings):
+
+            # this graph is in the validation set - skip
+            if i in validation_range:
+                continue
+
             optimizer.zero_grad()
+
             preds = classifier(emb)
-            loss = criterion(preds,barbasi_train_feats[i])
+            targets = barbasi_dgl_train[i].ndata['struct']
+
+            loss = criterion(preds,targets)
             total_loss += loss
-            total_accuracy += accuracy(preds,barbasi_train_feats[i])
+            total_accuracy += accuracy(preds,targets)
 
             loss.backward(retain_graph=True)
             optimizer.step()
@@ -195,18 +220,33 @@ def do_run(k=2):
         total_loss = 0
         total_accuracy = 0 
         
-        for i,emb in enumerate(barbasi_val_embeddings):
+        for i in validation_range:
+            emb = barbasi_train_embeddings[i]
             preds = classifier(emb)
-            loss = criterion(preds,barbasi_val_feats[i])
+            targets = barbasi_dgl_train[i].ndata['struct']
+
+            loss = criterion(preds,targets)
 
             total_loss += loss
-            total_accuracy += accuracy(preds,barbasi_val_feats[i])
+            total_accuracy += accuracy(preds,targets)
 
-        avg_loss = total_loss / len(barbasi_dgl_val)
-        avg_accuracy = total_accuracy / len(barbasi_dgl_val)
+        avg_loss = total_loss / validation_set_size
+        avg_accuracy = total_accuracy / validation_set_size
 
         writer.add_scalar("source-classifier/validation-loss",avg_loss,global_step=epoch)
         writer.add_scalar("source-classifier/validation-accuracy",avg_accuracy,global_step=epoch)
+
+
+        # shift cross validation range
+        validation_start += validation_set_size
+        validation_end += validation_set_size
+
+        if (validation_start >= len(barbasi_dgl_train) or validation_end >= len(barbasi_dgl_train)):
+            validation_start = 0
+            validation_end = validation_set_size
+
+        validation_range = range(validation_start,validation_end+1)
+
 
 
     
