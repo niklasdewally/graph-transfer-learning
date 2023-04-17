@@ -103,42 +103,39 @@ def do_run(k=2):
                 ).to(device)
 
     optimizer= torch.optim.Adam(model.parameters(),lr = lr,weight_decay = weight_decay)
-    with profile(activities=[ProfilerActivity.CPU,ProfilerActivity.CUDA], record_shapes=True) as prof:
-        for epoch in tqdm(range(n_epochs)):
-            model.train()
+    for epoch in tqdm(range(n_epochs)):
+        model.train()
 
-            t0 = time.time()
+        t0 = time.time()
 
-            loss = 0.0
-            
-            # train based on features and ego graphs around specific egos
-            for i,g in enumerate(barbasi_dgl_train):
-                for ego in sample(list(g.nodes()),n_nodes):
-                    optimizer.zero_grad()
+        loss = 0.0
+        
+        # train based on features and ego graphs around specific egos
+        for i,g in enumerate(barbasi_dgl_train):
+            optimizer.zero_grad()
+            for ego in sample(list(g.nodes()),n_nodes):
 
-                    l = model(barbasi_train_feats[i],ego)
-                    l.backward()
+                l = model(barbasi_train_feats[i],ego)
+                l.backward()
+                loss += l
 
-                    loss += l
-                    
-                optimizer.step()
+                
+            optimizer.step()
 
-            writer.add_scalar(f"encoder/training-loss",loss,global_step=epoch)
+        writer.add_scalar(f"encoder/training-loss",loss,global_step=epoch)
 
 
-            # calculate validation loss
-            model.eval()
-            loss = 0.0
-            for i,g in enumerate(barbasi_dgl_val):
-                for ego in sample(list(g.nodes()),n_nodes):
+        # calculate validation loss
+        model.eval()
+        loss = 0.0
+        for i,g in enumerate(barbasi_dgl_val):
+            for ego in sample(list(g.nodes()),n_nodes):
 
-                    l = model(barbasi_train_feats[i],ego)
-                    loss += l
-                    
+                l = model(barbasi_train_feats[i],ego)
+                loss += l
+                
 
-            writer.add_scalar(f"encoder/validation-loss",loss,global_step=epoch)
-            print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
-            print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
+        writer.add_scalar(f"encoder/validation-loss",loss,global_step=epoch)
 
     ###############################
 
