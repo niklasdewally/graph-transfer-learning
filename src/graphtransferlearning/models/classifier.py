@@ -18,7 +18,7 @@ class LogisticRegression(nn.Module):
 
     def __init__(self,input_dim,n_classes):
         super(LogisticRegression,self).__init__()
-        self.linear = nn.Linear(input_dim,nb_classes)
+        self.linear = nn.Linear(input_dim,n_classes)
 
     def forward(self,x):
         return self.linear(x)

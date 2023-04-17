@@ -7,6 +7,8 @@ from dgl.nn.pytorch import GraphConv, SAGEConv, GINConv
 from dgl.nn.pytorch.glob import SumPooling, AvgPooling, MaxPooling
 import numpy as np
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 class EGI(nn.Module):
 
     """ 
@@ -140,9 +142,8 @@ class _SubGDiscriminator(nn.Module):
 
         # k-hop ego graph.
         ego_graph,n = dgl.khop_in_subgraph(self.g,ego_node,self.k,store_ids=True)
+        ego_graph = ego_graph.to(device)
 
-        if torch.cuda.is_available():
-            ego_graph = ego_graph.to('cuda:0')
 
         ego_eg = n.item() # ego-node relative to ego graph
 
@@ -163,10 +164,8 @@ class _SubGDiscriminator(nn.Module):
         # go over hops in ego-graph, starting from outside
         for i in range(max_hop)[::-1]:
             edges = frontiers[i]
+            edges = edges.to(device)
 
-            if torch.cuda.is_available():
-                edges = edges.to('cuda:0')
-            
             # get nodes in the edges
             us,vs = ego_graph.find_edges(edges)
 
@@ -543,3 +542,4 @@ class GNNDiscLayer(nn.Module):
         g.push(v, self.msg, self.reduce)
         
         return g.edata.pop('output')[edges]
+
