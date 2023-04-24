@@ -34,14 +34,12 @@ class EGI(nn.Module):
             Defaults to 0.0.
     """
 
-    def __init__(self, g, in_feats, n_hidden, n_layers, activation, dropout=0.0):
+    def __init__(self, in_feats, n_hidden, n_layers, activation, dropout=0.0):
         super(EGI, self).__init__()
         
-        self.encoder = _Encoder(g, in_feats, n_hidden, n_layers, activation,dropout)
+        self.encoder = _Encoder(in_feats, n_hidden, n_layers, activation,dropout)
        
-        self.g = g
-
-        self.subg_disc = _SubGDiscriminator(g, in_feats, n_hidden) # Discriminator
+        self.subg_disc = _SubGDiscriminator(in_feats, n_hidden) # Discriminator
 
         self.loss = nn.BCEWithLogitsLoss()
         self.in_feats = in_feats
@@ -50,28 +48,23 @@ class EGI(nn.Module):
         self.activation = activation
         self.dropout = dropout
     
-    def reset_parameters(self):
-        self.encoder = Encoder(self.g, self.in_feats, self.n_hidden, self.n_layers, self.activation)
-        self.encoder.conv.g = self.g
-        self.subg_disc = SubGDiscriminator(self.g, self.in_feats, self.n_hidden, self.model_id)
-        self.loss = nn.BCEWithLogitsLoss()
 
-    def forward(self, features, blocks):
+    def forward(self, g, features, blocks):
         """
         Returns the loss of the model.
 
         For encoding, use .encoder.
         """
 
-        positive = self.encoder(features, corrupt=False)
+        positive = self.encoder(g,features, corrupt=False)
         
         # generate negative edges through random permutation
-        perm = torch.randperm(self.g.number_of_nodes())
+        perm = torch.randperm(g.number_of_nodes())
         negative = positive[perm]
 
-        positive_batch = self.subg_disc(blocks, positive, features)
+        positive_batch = self.subg_disc(g,blocks, positive, features)
 
-        negative_batch = self.subg_disc(blocks, negative, features)
+        negative_batch = self.subg_disc(g,blocks, negative, features)
 
         E_pos, E_neg, l = 0.0, 0.0, 0.0
         pos_num, neg_num = 0, 0
@@ -101,17 +94,16 @@ class _Encoder(nn.Module):
     Produces node embeddings for a given graph based on structural node features.
 
     """
-    def __init__(self, g, in_feats, n_hidden, n_layers, activation,dropout):
+    def __init__(self, in_feats, n_hidden, n_layers, activation,dropout):
         super(_Encoder, self).__init__()
         
-        self.g = g
-        self.conv = GIN(g, n_layers, 1, in_feats, n_hidden, n_hidden, dropout, True, 'sum', 'sum')
+        self.conv = GIN(n_layers, 1, in_feats, n_hidden, n_hidden, dropout, True, 'sum', 'sum')
 
-    def forward(self, features, corrupt=False):
+    def forward(self,g,features, corrupt=False):
         if corrupt:
-            perm = torch.randperm(self.g.number_of_nodes())
+            perm = torch.randperm(g.number_of_nodes())
             features = features[perm]
-        features = self.conv(features)
+        features = self.conv(g,features)
         return features
 
 class _SubGDiscriminator(nn.Module):
@@ -121,10 +113,9 @@ class _SubGDiscriminator(nn.Module):
     TODO: what does this do in detail?
 
     """
-    def __init__(self, g, in_feats, n_hidden, n_layers = 2):
+    def __init__(self,in_feats, n_hidden, n_layers = 2):
         super(_SubGDiscriminator, self).__init__()
 
-        self.g = g
         self.k = n_layers
 
         self.in_feats = in_feats
@@ -140,7 +131,7 @@ class _SubGDiscriminator(nn.Module):
         self.linear = nn.Linear(in_feats + 2 * n_hidden, n_hidden, bias = True)
         self.U_s = nn.Linear(n_hidden, 1)
 
-    def forward(self, blocks , emb, features):
+    def forward(self, g, blocks , emb, features):
        
 
         # reverse all edges 
@@ -149,10 +140,11 @@ class _SubGDiscriminator(nn.Module):
 
         for i,block in enumerate(blocks[2]):
             # get edges from the block
-            us,vs = self.g.find_edges(block.edata[dgl.EID])
-            reverse_edges += self.g.edge_ids(vs,us).tolist()
+            # https://github.com/dmlc/dgl/issues/1450
+            us,vs = g.find_edges(block.edata[dgl.EID])
+            reverse_edges += g.edge_ids(vs,us).tolist()
 
-        small_g = self.g.edge_subgraph(reverse_edges)
+        small_g = g.edge_subgraph(reverse_edges)
         small_g
         small_g.ndata['root'] = emb[small_g.ndata['_ID']]
         small_g.ndata['x'] = features[small_g.ndata['_ID']]
@@ -167,14 +159,16 @@ class _SubGDiscriminator(nn.Module):
         for i in range(len(blocks[2]))[::-1]:
 
             # get edges on given layer ids' in parent graph
-            vs0 = blocks[2][i].dstnodes()
+            vs0 = blocks[2][i].dstdata[dgl.NID]
 
             # convert to small_g node ids
             # https://stackoverflow.com/a/71833292
             vs = []
             for v in vs0:
                 res = (small_g_nodes ==v).nonzero()
-                assert res.shape[0]>0,f"{v}"
+                #assert res.shape[0]>0,f"{v}"
+                if (res.shape[0] <= 0): 
+                    continue
                 vs.append(res[0])
 
 
@@ -326,7 +320,7 @@ class MLP(nn.Module):
 
 class GIN(nn.Module):
     """GIN model"""
-    def __init__(self, g, num_layers, num_mlp_layers, input_dim, hidden_dim,
+    def __init__(self,num_layers, num_mlp_layers, input_dim, hidden_dim,
                  output_dim, final_dropout, learn_eps, graph_pooling_type,
                  neighbor_pooling_type):
         """model parameters setting
@@ -355,7 +349,6 @@ class GIN(nn.Module):
         super(GIN, self).__init__()
         self.num_layers = num_layers
         self.learn_eps = learn_eps
-        self.g = g
 
         # List of MLPs
         self.ginlayers = torch.nn.ModuleList()
@@ -394,12 +387,12 @@ class GIN(nn.Module):
         else:
             raise NotImplementedError
 
-    def forward(self, h):
+    def forward(self,g, h):
         # list of hidden representation at each layer (including input)
         hidden_rep = [h]
 
         for i in range(self.num_layers):
-            h = self.ginlayers[i](self.g, h)
+            h = self.ginlayers[i](g, h)
             # print('batch norm')
             # 
             h = self.batch_norms[i](h)
