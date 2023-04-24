@@ -72,7 +72,14 @@ def generate_synthetic_datasets(n_nodes = 100,
     return ba_graphs,ff_graphs,torch.tensor(list(classes.values())).to(device)
 
 
-def do_run(k=2,src_lr=0.1): 
+def do_run(k=2,
+           encoder_lr=0.01,
+           encoder_hidden_layers=32,
+           encoder_epochs=100,
+           weight_decay=0.,
+           sampler_type='EGI',
+           classifier_lr=0.1,
+           classifier_epochs=100):
     """
     Perform a specific run of the model for a given set of hyperparameters.
     """
@@ -82,14 +89,22 @@ def do_run(k=2,src_lr=0.1):
     writer = SummaryWriter() # outputs to ./runs by default
 
     # Encoder hyper parameters
-    lr = 0.01
-    n_hidden_layers=32
-    n_epochs=100
-    max_degree_in_feat = n_hidden_layers
-    weight_decay = 0.
+    max_degree_in_feat = encoder_hidden_layers
     feature_mode='degree_bucketing'
     optimiser='adam'
 
+    hparams.update({
+        "encoder-lr":encoder_lr,
+        "encoder-hidden-layers":encoder_hidden_layers,
+        "encoder-epochs":encoder_epochs,
+        "encoder-max-feature-degree":max_degree_in_feat,
+        "encoder-weight-decay":weight_decay,
+        "encoder-feature-mode":feature_mode,
+        "encoder-sampler":sampler_type,
+        "k":k,
+        "classifier-lr":classifier_lr,
+        "classifier-epochs":classifier_epochs,
+    })
 
     ###########################################################################
 
@@ -120,18 +135,22 @@ def do_run(k=2,src_lr=0.1):
 
     # see training/egi.py for more info 
     model = EGI(ff_train_feats[0].shape[1],
-                n_hidden_layers,
+                encoder_hidden_layers,
                 k+1,
-                nn.PReLU(n_hidden_layers),
+                nn.PReLU(encoder_hidden_layers),
                 ).to(device)
                 
-    optimizer= torch.optim.Adam(model.parameters(),lr = lr,weight_decay = weight_decay)
+    optimizer= torch.optim.Adam(model.parameters(),lr = encoder_lr,weight_decay = weight_decay)
     
     # sample k hop ego-graphs with max 10 neighbors each hop
-    sampler = dgl.dataloading.NeighborSampler([10 for i in range(k)])
+    if sampler_type == "EGI":
+        sampler = dgl.dataloading.NeighborSampler([10 for i in range(k)])
+    else:
+        raise NotImplementedError(f"Sampler {sampler_type} is not implemented!")
+    
 
     print("Training encoder")
-    for epoch in tqdm(range(n_epochs)):
+    for epoch in tqdm(range(encoder_epochs)):
         model.train()
 
         t0 = time.time()
@@ -177,9 +196,8 @@ def do_run(k=2,src_lr=0.1):
     # we dont use validation set here - instead, we cross validate on the training set only.
     ff_train_embeddings = [encoder(g,x).to(device) for g,x in zip(ff_train,ff_train_feats)]
 
-    # Source classifier hyperparameters
-    cl_n_epochs = 100
     cl_input_dim = max_degree_in_feat
+
 
     # Train source classifier
     print("Training classifier")
@@ -188,7 +206,7 @@ def do_run(k=2,src_lr=0.1):
 
     criterion = nn.CrossEntropyLoss()
 
-    optimizer = torch.optim.Adam(classifier.parameters(),lr=src_lr)
+    optimizer = torch.optim.Adam(classifier.parameters(),lr=classifier_lr)
 
     accuracy = Accuracy(task='multiclass',num_classes=n_classes).to(device)
 
@@ -198,7 +216,7 @@ def do_run(k=2,src_lr=0.1):
     validation_end = validation_start + validation_set_size
     validation_range = range(validation_start,validation_end+1)
 
-    for epoch in tqdm(range(cl_n_epochs)):
+    for epoch in tqdm(range(classifier_epochs)):
         
         classifier.train()
 
@@ -270,18 +288,18 @@ def do_run(k=2,src_lr=0.1):
     
     # see training/egi.py for more info 
     model = EGI(ba_train_feats[0].shape[1],
-                n_hidden_layers,
+                encoder_hidden_layers,
                 k+1,
-                nn.PReLU(n_hidden_layers),
+                nn.PReLU(encoder_hidden_layers),
                 ).to(device)
                 
-    optimizer= torch.optim.Adam(model.parameters(),lr = lr,weight_decay = weight_decay)
+    optimizer= torch.optim.Adam(model.parameters(),lr = encoder_lr,weight_decay = weight_decay)
     
     # sample k hop ego-graphs with max 10 neighbors each hop
     sampler = dgl.dataloading.NeighborSampler([10 for i in range(k)])
 
     print("Training encoder")
-    for epoch in tqdm(range(n_epochs)):
+    for epoch in tqdm(range(encoder_epochs)):
         model.train()
 
         t0 = time.time()
@@ -328,7 +346,6 @@ def do_run(k=2,src_lr=0.1):
     ff_train_embeddings = [encoder(g,x).to(device) for g,x in zip(ff_train,ff_train_feats)]
 
     # Source classifier hyperparameters
-    cl_n_epochs = 100
     cl_input_dim = max_degree_in_feat
 
     # Train source classifier
@@ -338,7 +355,7 @@ def do_run(k=2,src_lr=0.1):
 
     criterion = nn.CrossEntropyLoss()
 
-    optimizer = torch.optim.Adam(classifier.parameters(),lr=src_lr)
+    optimizer = torch.optim.Adam(classifier.parameters(),lr=classifier_lr)
 
     accuracy = Accuracy(task='multiclass',num_classes=n_classes).to(device)
 
@@ -348,7 +365,7 @@ def do_run(k=2,src_lr=0.1):
     validation_end = validation_start + validation_set_size
     validation_range = range(validation_start,validation_end+1)
 
-    for epoch in tqdm(range(cl_n_epochs)):
+    for epoch in tqdm(range(classifier_epochs)):
         
         classifier.train()
 
@@ -419,7 +436,6 @@ def do_run(k=2,src_lr=0.1):
 
     ###########################################################################
     # Write hyperparameters and results to tensorboard
-    hparams.update({"type":"EGI ego-graphs"})
 
     difference = results["hp/transfer-accuracy"] - results["hp/base-accuracy"]
     results.update({"hp/difference":difference})
@@ -427,4 +443,6 @@ def do_run(k=2,src_lr=0.1):
 
 
 if __name__ == '__main__':
-    do_run()
+    for sampler in ["EGI"]:
+        print(f"Running experiment for {sampler} sampler.")
+        do_run(sampler_type=sampler)
