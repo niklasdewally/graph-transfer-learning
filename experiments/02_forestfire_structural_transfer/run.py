@@ -26,6 +26,7 @@ from IPython import embed
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+
 def do_run(k=2,src_lr=0.1):
     """
     Perform a specific run of the model for a given set of hyperparameters.
@@ -34,6 +35,7 @@ def do_run(k=2,src_lr=0.1):
     writer = SummaryWriter() # outputs to ./runs by default
 
     # synthetic graph generation parameters
+
     n_nodes = 100
     n_graphs = 60
     ba_attached= 2
@@ -42,14 +44,16 @@ def do_run(k=2,src_lr=0.1):
 
 
     # Encoder hyper parameters
+    
     lr = 0.01
-    n_hidden_layers=32
-    n_epochs=40
+    n_hidden_layers=10
+    n_epochs=100
     max_degree_in_feat = n_hidden_layers
     weight_decay = 0.
     feature_mode='degree_bucketing'
     optimiser='adam'
 
+    ###########################################################################
 
     # Generate synthetic graphs
 
@@ -58,7 +62,7 @@ def do_run(k=2,src_lr=0.1):
 
     # store graphs in two formats for easy use
     forest_fire_nx = [g]
-    forest_fire_dgl = [dgl.from_networkx(g).to(device)]
+    forest_fire_dgl = [dgl.from_networkx(g,node_attrs=['struct']).to(device)]
 
     print(f"Generating {n_graphs} forest-fire graphs with {n_nodes} nodes each")
     for i in tqdm(range(1,n_graphs)):
@@ -77,18 +81,18 @@ def do_run(k=2,src_lr=0.1):
         barbasi_dgl.append(dgl.from_networkx(g,node_attrs=['struct']).to(device))
 
 
-    barbasi_classes = torch.as_tensor(list(classes.values()))
+    classes = torch.as_tensor(list(classes.values()))
+    n_classes = len(classes)
 
     # Test-validate split
     shuffle(barbasi_dgl)
     barbasi_dgl_val = barbasi_dgl[:20]
     barbasi_dgl_train = barbasi_dgl[20:]
 
+    ###########################################################################
+
     print(f"Training EGI encoder on barbasi graphs")
 
-
-    # Train model
-    
     barbasi_train_feats = [degree_bucketing(g,max_degree_in_feat).to(device) for g in barbasi_dgl_train]
     barbasi_val_feats = [degree_bucketing(g,max_degree_in_feat).to(device) for g in barbasi_dgl_val]
 
@@ -146,36 +150,34 @@ def do_run(k=2,src_lr=0.1):
 
         writer.add_scalar(f"encoder/validation-loss",loss/len(barbasi_dgl_val),global_step=epoch)
 
-    ###############################
-
 
     # source classifier preparation
     encoder = model.encoder
 
     barbasi_train_embeddings = [encoder(x).to(device)for x in barbasi_train_feats]
     barbasi_val_embeddings = [encoder(x).to(device)for x in barbasi_val_feats]
-    # barbasi_classes defined earlier
+    # classes defined earlier
+
+    ###########################################################################
 
     # Source classifier hyperparameters
     src_n_epochs = 100
 
     src_input_dim = max_degree_in_feat
-    src_n_classes = len(barbasi_classes)
 
 
     # Train source classifier
     print("Training source classifier")
 
-    classifier = gtl.models.LogisticRegression(src_input_dim,src_n_classes).to(device)
+    classifier = gtl.models.LogisticRegression(src_input_dim,n_classes).to(device)
 
     criterion = nn.CrossEntropyLoss()
 
     optimizer = torch.optim.Adam(classifier.parameters(),lr=src_lr)
-    accuracy = Accuracy(task='multiclass',num_classes=src_n_classes).to(device)
+    accuracy = Accuracy(task='multiclass',num_classes=n_classes).to(device)
 
 
-    # cross validate this, as structural labels are mostly unique across graphs
-    # cross-validate through a sliding window
+    # cross-validate using a sliding window of the training data
     validation_set_size = 5
     validation_start = 0
     validation_end = validation_start + validation_set_size
@@ -184,7 +186,6 @@ def do_run(k=2,src_lr=0.1):
     for epoch in tqdm(range(src_n_epochs)):
 
         classifier.train()
-
 
         # train on each training graph
         total_loss = 0
@@ -249,8 +250,96 @@ def do_run(k=2,src_lr=0.1):
 
 
 
-    
-    # Write hyperparameters to tensorboard
+    ###########################################################################
+    # Direct transfer embeddings, but fine tune classifier.
+
+    target_accuracy = 0.0
+
+    forest_fire_feats = [degree_bucketing(g,max_degree_in_feat).to(device) for g in forest_fire_dgl]
+    forest_fire_embeddings = [encoder(x).to(device) for x in forest_fire_feats]
+
+    print("Training target classifier")
+
+    classifier = gtl.models.LogisticRegression(src_input_dim,n_classes).to(device)
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(classifier.parameters(),lr=src_lr)
+    accuracy = Accuracy(task='multiclass',num_classes=n_classes).to(device)
+
+    # cross-validate using sliding window of the training data
+    validation_set_size = 5
+    validation_start = 0
+    validation_end = validation_start + validation_set_size
+    validation_range = range(validation_start,validation_end+1)
+
+    for epoch in tqdm(range(src_n_epochs)):
+        classifier.train()
+
+        total_loss = 0
+        total_accuracy = 0 
+
+        for i,emb in enumerate(forest_fire_embeddings):
+            if i in validation_range:
+                continue
+
+            optimizer.zero_grad()
+
+            preds = classifier(emb)
+
+            targets = forest_fire_dgl[i].ndata['struct']
+
+            loss = criterion(preds,targets)
+            total_loss += loss
+            total_accuracy += accuracy(preds,targets)
+
+            loss.backward(retain_graph=True)
+            optimizer.step()
+
+        target_avg_loss = total_loss / len(forest_fire_dgl)
+        target_avg_accuracy = total_accuracy / len(forest_fire_dgl)
+
+        writer.add_scalar("target-classifier/training-loss",target_avg_loss,global_step=epoch)
+        writer.add_scalar("target-classifier/training-accuracy",target_avg_accuracy,global_step=epoch)
+
+        # Compute validation metrics
+        classifier.eval()
+
+        total_loss = 0
+        total_accuracy = 0 
+        
+        for i in validation_range:
+            emb = forest_fire_embeddings[i]
+            preds = classifier(emb)
+            targets = forest_fire_dgl[i].ndata['struct']
+
+            loss = criterion(preds,targets)
+
+            total_loss += loss
+            total_accuracy += accuracy(preds,targets)
+
+        target_avg_loss = total_loss / validation_set_size
+        target_avg_accuracy = total_accuracy / validation_set_size
+
+        writer.add_scalar("target-classifier/validation-loss",target_avg_loss,global_step=epoch)
+        writer.add_scalar("target-classifier/validation-accuracy",target_avg_accuracy,global_step=epoch)
+
+
+        # shift cross validation range
+        validation_start += validation_set_size
+        validation_end += validation_set_size
+
+        if (validation_start >= len(forest_fire_dgl) or validation_end >= len(forest_fire_dgl)):
+            validation_start = 0
+            validation_end = validation_set_size
+
+        validation_range = range(validation_start,validation_end+1)
+
+
+
+    ###########################################################################
+    # Write hyperparameters and results to tensorboard
+    difference = avg_accuracy - target_avg_accuracy
+    percent_difference =(avg_accuracy - target_avg_accuracy) / target_avg_accuracy
+
     writer.add_hparams(
             {'k': k, 
              'max-degree-in-feature': max_degree_in_feat,
@@ -261,14 +350,11 @@ def do_run(k=2,src_lr=0.1):
              'source-classifier/epochs':src_n_epochs,
              'source-classifier/lr': src_lr,
              },
-            {'source-classifier/validation-accuracy':avg_accuracy})
+            {'source-classifier/validation-accuracy':avg_accuracy,
+             'target/validation-accuracy':target_avg_accuracy,
+             'difference':difference,
+              '% difference':percent_difference})
 
-    # Transfer to target graph
-
-    # Create target encoder (no finetuning)
-
-    # Create target classifier (no finetuning)
-    target_accuracy = 0;
 
 if __name__ == '__main__':
     do_run()
