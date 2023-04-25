@@ -1,0 +1,3 @@
+class KHopTriangleSampler:
+    def __init__(self):
+        raise NotImplementedError

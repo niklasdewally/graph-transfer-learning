@@ -19,7 +19,8 @@ def train_egi_encoder(dgl_graph,
                       optimiser='adam',
                       pre_train=None,
                       save_weights_to=None,
-                      writer=None):
+                      writer=None,
+                      tb_prefix=""):
 
 
     """
@@ -75,6 +76,9 @@ def train_egi_encoder(dgl_graph,
             a tensor board.
 
             Defaults to None.
+
+        tb_prefix: A prefix to attach to variables on tensor board.
+            Useful if a given model has multiple encoders.
 
     Returns:
         The trained EGI encoder model.
@@ -153,7 +157,7 @@ def train_egi_encoder(dgl_graph,
         loss = 0.0
         
         # train based on features and ego graphs around specifc egos
-        for ego in sample(list(dgl_graph.nodes()),256):
+        for ego in sample(list(dgl_graph.nodes()),len(list(dgl_graph.nodes()))):
 
             optimizer.zero_grad()
 
@@ -168,10 +172,10 @@ def train_egi_encoder(dgl_graph,
 
         if epoch >= 3 and writer is not None:
             if writer:
-                writer.add_scalar('Epoch time',time.time() - t0 ,global_step=epoch)
+                writer.add_scalar(f'{tb_prefix}/time-per-epoch',time.time() - t0 ,global_step=epoch)
 
         if writer:
-            writer.add_scalar('Training Loss',loss,global_step=epoch)
+            writer.add_scalar(f'{tb_prefix}/training-loss',loss,global_step=epoch)
 
     # save parameters for later fine-tuning if a save path is given
     if save_weights_to is not None:
