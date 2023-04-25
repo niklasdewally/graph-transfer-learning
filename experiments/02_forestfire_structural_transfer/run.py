@@ -14,6 +14,7 @@ import torch
 import torch.nn as nn
 import time
 
+from math import sqrt
 from torch.utils.tensorboard import SummaryWriter
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchmetrics import Accuracy
@@ -441,8 +442,30 @@ def do_run(k=2,
     results.update({"hp/difference":difference})
     writer.add_hparams(hparams,results)
 
+    return results;
+
 
 if __name__ == '__main__':
-    for sampler in ["EGI"]:
-        print(f"Running experiment for {sampler} sampler.")
-        do_run(sampler_type=sampler)
+    means = dict()
+    n = 5
+
+    SAMPLERS = ["EGI"]
+    for sampler in SAMPLERS:
+        differences = []
+        for i in range(n):
+           print(f"Running experiment for {sampler} sampler.")
+           results = do_run(sampler_type=sampler)
+           differences.append(results['hp/difference'])
+
+        # collect summary statistics on difference
+        mean = sum(differences)/len(differences)
+        means[sampler] = sum(differences)/len(differences)
+        sds[sampler]  = sqrt(sum([(x- means[sampler])**2 for x in differences])/n-1)
+
+
+    # print summary results
+    for sampler in SAMPLERS:
+        mean = means[sampler]
+        sd = sds[sampler]
+
+        print(f"Sampler {sampler}: mean difference {mean}; sd {sd}")

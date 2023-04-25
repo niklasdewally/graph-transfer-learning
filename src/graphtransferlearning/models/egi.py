@@ -132,7 +132,6 @@ class _SubGDiscriminator(nn.Module):
         self.U_s = nn.Linear(n_hidden, 1)
 
     def forward(self, g, blocks , emb, features):
-       
 
         # reverse all edges 
         reverse_edges = []
@@ -145,7 +144,6 @@ class _SubGDiscriminator(nn.Module):
             reverse_edges += g.edge_ids(vs,us).tolist()
 
         small_g = g.edge_subgraph(reverse_edges)
-        small_g
         small_g.ndata['root'] = emb[small_g.ndata['_ID']]
         small_g.ndata['x'] = features[small_g.ndata['_ID']]
         small_g.ndata['m']= torch.zeros_like(emb[small_g.ndata['_ID']])
@@ -183,50 +181,6 @@ class _SubGDiscriminator(nn.Module):
             edge_embs.append(self.U_s(F.relu(self.linear(h))))
 
         return edge_embs
-        ##########
-
-        ## k-hop ego graph.
-        #ego_graph,n = dgl.khop_in_subgraph(self.g,ego_node,self.k,store_ids=True)
-        #ego_graph = ego_graph.to(device)
-
-
-        #ego_eg = n.item() # ego-node relative to ego graph
-
-        ## idk tbh - used by discriminator
-        #ego_graph.ndata['root'] = emb[ego_graph.ndata['_ID']]
-        #ego_graph.ndata['x'] = features[ego_graph.ndata['_ID']]
-        #ego_graph.ndata['m']= torch.zeros_like(emb[ego_graph.ndata['_ID']])
-
-        #edge_scores = []
-
-        ## Sample edges using breadth-first-search, starting from the ego.
-        ## Returns a list of "edge frontiers". Each edge frontier will be
-        ## another hop in the ego graph.
-        #frontiers = dgl.bfs_edges_generator(ego_graph,ego_eg,reverse=True)
-
-        #max_hop = len(frontiers)
-
-        ## go over hops in ego-graph, starting from outside
-        #for i in range(max_hop)[::-1]:
-        #    edges = frontiers[i]
-        #    edges = edges.to(device)
-
-        #    # get nodes in the edges
-        #    us,vs = ego_graph.find_edges(edges)
-
-        #    # TODO: not sure if ive reversed the ego-graph right.
-        #    # Get edge score
-        #    if i+1 == max_hop:
-        #        h = self.dc_layers[0](ego_graph,vs,us, 2)
-        #        edge_scores.append(self.U_s(F.relu(self.linear(h))))
-        #    else:
-        #        h = self.dc_layers[0](ego_graph,vs,us, 1)
-        #        edge_scores.append(self.U_s(F.relu(self.linear(h))))
-
-
-        ## return total scores
-        #return edge_scores
-
 
        # # for every hop in the ego-graph
        # for i in range(nf.num_blocks):
