@@ -78,7 +78,7 @@ def do_run(k=2,
            encoder_hidden_layers=32,
            encoder_epochs=100,
            weight_decay=0.,
-           sampler_type='EGI',
+           sampler_type='egi',
            classifier_lr=0.1,
            classifier_epochs=100):
     """
@@ -144,8 +144,10 @@ def do_run(k=2,
     optimizer= torch.optim.Adam(model.parameters(),lr = encoder_lr,weight_decay = weight_decay)
     
     # sample k hop ego-graphs with max 10 neighbors each hop
-    if sampler_type == "EGI":
+    if sampler_type == "egi":
         sampler = dgl.dataloading.NeighborSampler([10 for i in range(k)])
+    elif sampler_type == "triangle":
+        sampler = gtl.KHopTriangleSampler([10 for i in range(k)])
     else:
         raise NotImplementedError(f"Sampler {sampler_type} is not implemented!")
     
@@ -447,9 +449,9 @@ def do_run(k=2,
 
 if __name__ == '__main__':
     means = dict()
-    n = 5
+    n = 4
 
-    SAMPLERS = ["EGI"]
+    SAMPLERS = ["triangle","egi"]
     for sampler in SAMPLERS:
         differences = []
         for i in range(n):
@@ -460,7 +462,7 @@ if __name__ == '__main__':
         # collect summary statistics on difference
         mean = sum(differences)/len(differences)
         means[sampler] = sum(differences)/len(differences)
-        sds[sampler]  = sqrt(sum([(x- means[sampler])**2 for x in differences])/n-1)
+        sds[sampler]  = sqrt(sum([(x- means[sampler])**2 for x in differences])/(n-1))
 
 
     # print summary results

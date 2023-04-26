@@ -109,9 +109,6 @@ class _Encoder(nn.Module):
 class _SubGDiscriminator(nn.Module):
     """
     The EGI discriminator.
-
-    TODO: what does this do in detail?
-
     """
     def __init__(self,in_feats, n_hidden, n_layers = 2):
         super(_SubGDiscriminator, self).__init__()
