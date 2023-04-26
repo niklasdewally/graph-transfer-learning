@@ -18,6 +18,7 @@ def train_egi_encoder(dgl_graph,
                       feature_mode='degree_bucketing',
                       optimiser='adam',
                       pre_train=None,
+                      sampler="egi",
                       save_weights_to=None,
                       writer=None,
                       tb_prefix=""):
@@ -66,6 +67,9 @@ def train_egi_encoder(dgl_graph,
             For more information, see
             https://pytorch.org/tutorials/beginner/saving_loading_models.html.
 
+        sampler: The subgraph sampler to use.
+            Options are ['egi','triangle']
+            Defaults to 'egi'.
 
         save_weights_to: A file path to save EGI model parameters for use in
             transfer learning.
@@ -89,6 +93,7 @@ def train_egi_encoder(dgl_graph,
     # input validation
     valid_feature_modes = ['degree_bucketing']
     valid_optimisers = ['adam']
+    valid_samplers = ['egi','triangle']
 
     if feature_mode not in valid_feature_modes:
         raise ValueError(f"{feature_mode} is not a valid feature generation "\
@@ -97,6 +102,10 @@ def train_egi_encoder(dgl_graph,
     if optimiser not in valid_optimisers:
         raise ValueError(f"{optimiser} is not a valid optimiser."\
                            "Valid options are {valid_optimisers}.")
+
+    if sampler not in valid_samplers:
+        raise ValueError(f"{sampler} is not a valid sampler."\
+                           "Valid options are {valid_sampler}.")
 
     if k < 1: 
         raise ValueError("k must be 1 or greater.")
@@ -108,6 +117,11 @@ def train_egi_encoder(dgl_graph,
     # generate features
     
     features = degree_bucketing(dgl_graph,n_hidden_layers)
+
+    if sampler == 'egi':
+        sampler = dgl.dataloading.NeighborSampler([10 for i in range(k)])
+    elif sampler == 'triangle':
+        sampler = gtl.KHopTriangleSampler([10 for i in range(k)])
 
     # are we running on a gpu?
     device = 'cpu' if gpu < 0 else f"cuda:{gpu}"
@@ -121,8 +135,7 @@ def train_egi_encoder(dgl_graph,
     # in the original code, they set number of layers to equal k +1
     n_layers = k + 1
 
-    model = EGI(dgl_graph,
-                in_feats,
+    model = EGI(in_feats,
                 n_hidden_layers,
                 n_layers,
                 nn.PReLU(n_hidden_layers),
@@ -157,18 +170,18 @@ def train_egi_encoder(dgl_graph,
         loss = 0.0
         
         # train based on features and ego graphs around specifc egos
-        for ego in sample(list(dgl_graph.nodes()),len(list(dgl_graph.nodes()))):
 
-            optimizer.zero_grad()
+        optimizer.zero_grad()
 
-            l = model(features,ego) # forward propagate to find loss
+        # the sampler returns a list of blocks and involved nodes
+        # each block holds a set of edges from a source to destination
+        # each block is a hop in the graph
+        blocks = sampler.sample(dgl_graph,dgl_graph.nodes())
+        l = model(dgl_graph,features,blocks)
 
-            l.backward()
-
-            loss += l
-
-            optimizer.step()
-
+        l.backward()
+        loss += l         
+        optimizer.step()
 
         if epoch >= 3 and writer is not None:
             if writer:
