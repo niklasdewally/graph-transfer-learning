@@ -1,5 +1,9 @@
 from graphtransferlearning.features import degree_bucketing
+
+from dgl.dataloading import DataLoader
+
 from graphtransferlearning.models import EGI
+import graphtransferlearning as gtl
 import torch
 import torch.nn as nn
 from torch.profiler import profile, record_function, ProfilerActivity
@@ -7,6 +11,7 @@ import dgl
 import time
 from tqdm import tqdm
 from random import sample
+from IPython import embed
 
 def train_egi_encoder(dgl_graph,
                       gpu=-1,
@@ -18,6 +23,8 @@ def train_egi_encoder(dgl_graph,
                       feature_mode='degree_bucketing',
                       optimiser='adam',
                       pre_train=None,
+                      batch_size=50,
+                      kfolds = 10,
                       sampler="egi",
                       save_weights_to=None,
                       writer=None,
@@ -42,7 +49,7 @@ def train_egi_encoder(dgl_graph,
            Defaults to 2, which was shown to have the best results in the
            original paper.
 
-        lr: Learning rate. Defaults to 0.01.
+        lr: Learning rate. Defaults to 0.01. l
 
         n_hidden_layers: The number of hidden layers in the encoder. Defaults
             to 32.
@@ -67,6 +74,10 @@ def train_egi_encoder(dgl_graph,
             For more information, see
             https://pytorch.org/tutorials/beginner/saving_loading_models.html.
 
+        batch_size: The number of nodes to consider in each training batch.
+
+        kfolds: The number of partitions to use in the data for cross-validation.
+
         sampler: The subgraph sampler to use.
             Options are ['egi','triangle']
             Defaults to 'egi'.
@@ -77,9 +88,12 @@ def train_egi_encoder(dgl_graph,
             Defaults to None.
 
         writer: A torch.utils.tensorboard.SummaryWriter. Used to write loss to 
-            a tensor board.
+                a tensor board.
 
-            Defaults to None.
+                the metrics {tb_prefix}/training-loss and
+                {tb_prefix}/validation-loss are saved.
+
+                Defaults to None.
 
         tb_prefix: A prefix to attach to variables on tensor board.
             Useful if a given model has multiple encoders.
@@ -156,9 +170,17 @@ def train_egi_encoder(dgl_graph,
     # some summary statistics
     best = 1e9
 
+    # setup cross-validation
+    fold_size = dgl_graph.num_nodes() // kfolds
+    assert(fold_size >= 1)
+        
+    folds = torch.split(dgl_graph.nodes(),fold_size)
+
     # start training
     for epoch in tqdm(range(n_epochs)):
-        
+        current_fold = epoch % kfolds
+        val_nodes = folds[current_fold]
+        train_nodes = torch.unique(torch.cat([val_nodes,dgl_graph.nodes()]))
             
         # Enable training mode for model
         model.train()
@@ -170,25 +192,35 @@ def train_egi_encoder(dgl_graph,
         loss = 0.0
         
         # train based on features and ego graphs around specifc egos
-
+        model.train()
         optimizer.zero_grad()
 
         # the sampler returns a list of blocks and involved nodes
         # each block holds a set of edges from a source to destination
         # each block is a hop in the graph
-        blocks = sampler.sample(dgl_graph,dgl_graph.nodes())
-        l = model(dgl_graph,features,blocks)
+        for blocks in DataLoader(dgl_graph,train_nodes,sampler,batch_size=batch_size,shuffle=True):
+            l = model(dgl_graph,features,blocks)
+            l.backward()
+            optimizer.step()
+            loss += l         
 
-        l.backward()
-        loss += l         
-        optimizer.step()
+        if writer:
+            writer.add_scalar(f'{tb_prefix}/training-loss',loss,global_step=epoch)
+
+        # validation
+
+        model.eval()
+        loss = 0.0
+        blocks = sampler.sample(dgl_graph,val_nodes) 
+        loss = model(dgl_graph,features,blocks)
+
+        if writer:
+            writer.add_scalar(f'{tb_prefix}/validation-loss',loss,global_step=epoch)
 
         if epoch >= 3 and writer is not None:
             if writer:
                 writer.add_scalar(f'{tb_prefix}/time-per-epoch',time.time() - t0 ,global_step=epoch)
 
-        if writer:
-            writer.add_scalar(f'{tb_prefix}/training-loss',loss,global_step=epoch)
 
     # save parameters for later fine-tuning if a save path is given
     if save_weights_to is not None:

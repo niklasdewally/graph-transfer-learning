@@ -5,26 +5,31 @@ k-hop neighbor similarilty (using WL).
 Aim is to direct transfer labels from one to another.
 """
 
+from math import sqrt
+import datetime
+import time
+from random import shuffle,sample
+from types import SimpleNamespace
+
 import dgl
-import graphtransferlearning as gtl
-from graphtransferlearning.features import degree_bucketing
-from graphtransferlearning.models import EGI
+from dgl.dataloading import DataLoader
+from IPython import embed
 import numpy as np
+
 import torch
 import torch.nn as nn
-import time
-
-from math import sqrt
 from torch.utils.tensorboard import SummaryWriter
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchmetrics import Accuracy
+
 from tqdm import tqdm
-from types import SimpleNamespace
+
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import train_test_split
-from random import shuffle,sample
 
-from IPython import embed
+import graphtransferlearning as gtl
+from graphtransferlearning.features import degree_bucketing
+from graphtransferlearning.models import EGI
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -76,18 +81,43 @@ def generate_synthetic_datasets(n_nodes = 100,
 def do_run(k=2,
            encoder_lr=0.01,
            encoder_hidden_layers=32,
-           encoder_epochs=100,
+           encoder_epochs=80,
            weight_decay=0.,
            sampler_type='egi',
            classifier_lr=0.1,
-           classifier_epochs=100):
+           classifier_epochs=100,
+           run_name=None):
     """
     Perform a specific run of the model for a given set of hyperparameters.
     """
 
     results = dict()
     hparams = dict() # used for tensorboard
-    writer = SummaryWriter() # outputs to ./runs by default
+    if run_name is None:
+        writer = SummaryWriter() # outputs to ./runs by default
+    else:
+        writer= SummaryWriter(log_dir=run_name)
+
+    layout = {'Encoders'   :{
+                'base-loss':['Multiline',['base-encoder/training-loss',
+                                          'base-encoder/validation-loss',]],
+                'transfer-loss':['Multiline',['transfer-encoder/training-loss',
+                                              'transfer-encoder/validation-loss']]},
+              'Classifiers':{
+                  'base-loss'    :['Multiline',['base-classifier/training-loss',
+                                                'base-clasifier/validation-loss']],
+                  'transfer-loss'    :['Multiline',['transfer-classifier/training-loss',
+                                                    'transfer-clasifier/validation-loss']],
+                  'transfer-accuracy':['Multiline',['transfer-classifier/training-accuracy',
+                                                    'transfer-classifier/validation-accuracy',]],
+
+                  'base-accuracy':['Multiline',['base-classifier/training-accuracy',
+                                                    'base-classifier/validation-accuracy',]]
+                  }
+              }
+
+    writer.add_custom_scalars(layout)
+
 
     # Encoder hyper parameters
     max_degree_in_feat = encoder_hidden_layers
@@ -101,7 +131,7 @@ def do_run(k=2,
         "encoder-max-feature-degree":max_degree_in_feat,
         "encoder-weight-decay":weight_decay,
         "encoder-feature-mode":feature_mode,
-        "encoder-sampler":sampler_type,
+        "model-type":sampler_type,
         "k":k,
         "classifier-lr":classifier_lr,
         "classifier-epochs":classifier_epochs,
@@ -162,19 +192,17 @@ def do_run(k=2,
             
         # train based on features and ego graphs around specific egos
         for i,g in enumerate(ff_train):
-            optimizer.zero_grad()
-
-            features = ff_train_feats[i]
-            
             # the sampler returns a list of blocks and involved nodes
             # each block holds a set of edges from a source to destination
             # each block is a hop in the graph
-            blocks = sampler.sample(g,g.nodes())
-            l = model(g,features,blocks)
-
-            l.backward()
-            loss += l         
-            optimizer.step()
+            # perform mini-batch training
+            features = ff_train_feats[i]
+            optimizer.zero_grad()
+            for blocks in DataLoader(g,g.nodes(),sampler,device=device,batch_size=20,shuffle=True):
+                l = model(g,features,blocks)
+                l.backward()
+                optimizer.step()
+                loss += l         
 
         writer.add_scalar(f"base-encoder/training-loss",loss/len(ff_train),global_step=epoch)
 
@@ -184,10 +212,10 @@ def do_run(k=2,
         loss = 0.0
 
         for i,g in enumerate(ff_val):
-            blocks = sampler.sample(g,g.nodes())
             features = ff_val_feats[i]
-            l = model(g,features,blocks)
-            loss += l   
+            for blocks in DataLoader(g,g.nodes(),sampler,device=device,batch_size=20,shuffle=True):
+                l = model(g,features,blocks)
+                loss += l   
 
         writer.add_scalar(f"base-encoder/validation-loss",loss/len(ff_val),global_step=epoch)
 
@@ -312,18 +340,17 @@ def do_run(k=2,
         # train based on features and ego graphs around specific egos
         for i,g in enumerate(ff_train):
             optimizer.zero_grad()
-
             features = ba_train_feats[i]
-            
+
             # the sampler returns a list of blocks and involved nodes
             # each block holds a set of edges from a source to destination
             # each block is a hop in the graph
-            blocks = sampler.sample(g,g.nodes())
-            l = model(g,features,blocks)
-
-            l.backward()
-            loss += l         
-            optimizer.step()
+            # perform mini-batch training
+            for blocks in DataLoader(g,g.nodes(),sampler,device=device,batch_size=20,shuffle=True):
+                l = model(g,features,blocks)
+                l.backward()
+                optimizer.step()
+                loss += l
 
         writer.add_scalar(f"transfer-encoder/training-loss",loss/len(ba_train),global_step=epoch)
 
@@ -333,10 +360,10 @@ def do_run(k=2,
         loss = 0.0
 
         for i,g in enumerate(ba_val):
-            blocks = sampler.sample(g,g.nodes())
             features = ba_val_feats[i]
-            l = model(g,features,blocks)
-            loss += l   
+            for blocks in DataLoader(g,g.nodes(),sampler,device=device,batch_size=20,shuffle=True):
+                l = model(g,features,blocks)
+                loss += l   
 
         writer.add_scalar(f"transfer-encoder/validation-loss",loss/len(ba_val),global_step=epoch)
 
@@ -362,7 +389,7 @@ def do_run(k=2,
 
     accuracy = Accuracy(task='multiclass',num_classes=n_classes).to(device)
 
-    # cross-validate using a sliding window of the training data
+    # cross-validate using a sliding wturindow of the training data
     validation_set_size = 5
     validation_start = 0
     validation_end = validation_start + validation_set_size
@@ -448,26 +475,14 @@ def do_run(k=2,
 
 
 if __name__ == '__main__':
-    means = dict()
-    n = 4
+    n = 10
 
-    SAMPLERS = ["triangle","egi"]
+    time_now = datetime.datetime.now().strftime("%y%m%dT%H%M")
+    SAMPLERS = ["egi","triangle"]
     for sampler in SAMPLERS:
-        differences = []
         for i in range(n):
            print(f"Running experiment for {sampler} sampler.")
-           results = do_run(sampler_type=sampler)
-           differences.append(results['hp/difference'])
-
-        # collect summary statistics on difference
-        mean = sum(differences)/len(differences)
-        means[sampler] = sum(differences)/len(differences)
-        sds[sampler]  = sqrt(sum([(x- means[sampler])**2 for x in differences])/(n-1))
+           results = do_run(sampler_type=sampler,run_name=f"./runs/{time_now}/{sampler}/{i}")
 
 
-    # print summary results
-    for sampler in SAMPLERS:
-        mean = means[sampler]
-        sd = sds[sampler]
 
-        print(f"Sampler {sampler}: mean difference {mean}; sd {sd}")
