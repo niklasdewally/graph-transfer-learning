@@ -1,7 +1,9 @@
 
 *.pickle
 
+runs/
 models/
+!src/graphtransferlearning/models
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
