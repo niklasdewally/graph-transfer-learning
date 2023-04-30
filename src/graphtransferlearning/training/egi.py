@@ -27,6 +27,8 @@ def train_egi_encoder(dgl_graph,
                       kfolds = 10,
                       sampler="egi",
                       save_weights_to=None,
+                      patience=25,
+                      min_delta=0.01,
                       writer=None,
                       tb_prefix=""):
 
@@ -169,12 +171,15 @@ def train_egi_encoder(dgl_graph,
 
     # some summary statistics
     best = 1e9
+    best_epoch=-1
 
     # setup cross-validation
     fold_size = dgl_graph.num_nodes() // kfolds
     assert(fold_size >= 1)
         
-    folds = torch.split(dgl_graph.nodes(),fold_size)
+    # shuffle nodes before putting into folds
+    indexes = torch.randperm(dgl_graph.nodes().shape[0])
+    folds = torch.split(dgl_graph.nodes()[indexes],fold_size)
 
     # start training
     for epoch in tqdm(range(n_epochs)):
@@ -213,6 +218,20 @@ def train_egi_encoder(dgl_graph,
         loss = 0.0
         blocks = sampler.sample(dgl_graph,val_nodes) 
         loss = model(dgl_graph,features,blocks)
+
+        # early stopping
+        if loss <= best + min_delta:
+            # https://machinelearningmastery.com/managing-a-pytorch-training-process-with-checkpoints-and-early-stopping/
+            best = loss
+            best_epoch = epoch
+            # save current weights
+            torch.save(model.state_dict(), 'stopping')
+
+
+        if (epoch - best_epoch > patience):
+            print("Early stopping!")
+            model.load_state_dict(torch.load('stopping'))
+            break
 
         if writer:
             writer.add_scalar(f'{tb_prefix}/validation-loss',loss,global_step=epoch)

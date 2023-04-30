@@ -22,7 +22,7 @@ import networkx as nx
 import numpy as np
 
 
-HIDDEN_LAYERS = 128
+HIDDEN_LAYERS = 32
 
 def get_edge_embedding(emb,a,b):
     return np.multiply(emb[a].detach().cpu(),emb[b].detach().cpu())
@@ -46,7 +46,8 @@ def main(log_dir,sampler):
     writer = SummaryWriter(log_dir)
     layout = {'':{
                 'Base encoder-loss':['Multiline',['base/training-loss','base/validation-loss']],
-                'Transfer encoder-loss':['Multiline',['transfer/training-loss','transfer/validation-loss']]
+                'Transfer encoder-loss':['Multiline',['transfer/training-loss','transfer/validation-loss']],
+                'Finetune encoder-loss':['Multiline',['finetune/training-loss','finetune/validation-loss']]
                 }}
                     
     writer.add_custom_scalars(layout)
@@ -69,7 +70,7 @@ def main(log_dir,sampler):
 
     # Base case: pubmed direct training
     print("Contro case: train model on pubmed without transfer")
-    encoder = gtl.training.train_egi_encoder(pubmed,gpu=0,kfolds=5,sampler=sampler,
+    encoder = gtl.training.train_egi_encoder(pubmed,gpu=0,kfolds=10,sampler=sampler,
                                              n_hidden_layers=HIDDEN_LAYERS,
                                              writer=writer,tb_prefix='base')
 
@@ -80,7 +81,6 @@ def main(log_dir,sampler):
 
     embs = encoder(pubmed,features)
 
-    # fine-tune link predictor
     positive_edges = list(pubmed_nx.edges(data=False))
     nodes = list(pubmed_nx.nodes(data=False))
     negative_edges = generate_negative_edges(positive_edges,nodes,len(positive_edges)) 
@@ -122,7 +122,9 @@ def main(log_dir,sampler):
 
     # train encoder for cora
     print("Training CORA encoder")
-    encoder = gtl.training.train_egi_encoder(cora,gpu=0,kfolds=10,save_weights_to=tmp_file,
+    encoder = gtl.training.train_egi_encoder(cora,gpu=0,
+                                             kfolds=10,
+                                             save_weights_to=tmp_file,
                                              sampler=sampler,
                                              n_hidden_layers=HIDDEN_LAYERS,
                                              writer=writer,
@@ -143,6 +145,29 @@ def main(log_dir,sampler):
 
     embs = embs.cuda()
 
+    # fine-tune embedder for link predictor
+    cora_nx = cora.cpu().to_networkx()
+    positive_edges = list(cora_nx.edges(data=False))
+    nodes = list(cora_nx.nodes(data=False))
+    negative_edges = generate_negative_edges(positive_edges,nodes,len(positive_edges)) 
+
+    edges = []
+    values = []
+
+    for u,v in positive_edges:
+        edges.append(get_edge_embedding(embs,u,v))
+        values.append(1)
+        
+    for u,v in negative_edges:
+        edges.append(get_edge_embedding(embs,u,v))
+        values.append(0)
+
+    train_edges,test_edges,train_classes,test_classes = train_test_split(edges,values)
+    train_edges =torch.stack(train_edges) # list of tensors to 3d tensor
+    test_edges =torch.stack(test_edges) # list of tensors to 3d tensor
+
+    classifier = SGDClassifier(max_iter=1000)
+    classifier = classifier.fit(train_edges,train_classes)
 
 
 
@@ -150,7 +175,15 @@ def main(log_dir,sampler):
     # perform transfer learning
 
     print("Fine-tuning the encoder on PubMed")
-    transfer_encoder = gtl.training.train_egi_encoder(pubmed,gpu=0,pre_train=tmp_file,sampler=sampler,n_hidden_layers=HIDDEN_LAYERS)
+    transfer_encoder = gtl.training.train_egi_encoder(pubmed,
+                                                      gpu=0,
+                                                      pre_train=tmp_file,
+                                                      sampler=sampler,
+                                                      n_hidden_layers=HIDDEN_LAYERS,
+                                                      n_epochs=50,
+                                                      kfolds=3,
+                                                      writer=writer,
+                                                      tb_prefix='finetune')
 
     features = degree_bucketing(pubmed,HIDDEN_LAYERS) # the maximum degree must be the same as used in training.
     if (torch.cuda.is_available()):
@@ -179,8 +212,7 @@ def main(log_dir,sampler):
     train_edges =torch.stack(train_edges) # list of tensors to 3d tensor
     test_edges =torch.stack(test_edges) # list of tensors to 3d tensor
 
-    classifier = SGDClassifier(max_iter=1000)
-    classifier = classifier.fit(train_edges,train_classes)
+    classifier = classifier.partial_fit(train_edges,train_classes)
     print(f"The transferred link predictor has an accuracy score of \
     {classifier.score(test_edges,test_classes)}")
 
