@@ -1,15 +1,18 @@
-from graphtransferlearning.features import degree_bucketing
+import time
+import wandb
 
-from dgl.dataloading import DataLoader
-
-from graphtransferlearning.models import EGI
-import graphtransferlearning as gtl
+import dgl
 import torch
 import torch.nn as nn
-import dgl
-import time
+import wandb
+from dgl.dataloading import DataLoader
 from tqdm import tqdm
 
+import graphtransferlearning as gtl
+from graphtransferlearning.features import degree_bucketing
+from graphtransferlearning.models import EGI
+
+from IPython import embed
 
 def train_egi_encoder(
     dgl_graph,
@@ -30,7 +33,8 @@ def train_egi_encoder(
     min_delta=0.01,
     writer=None,
     tb_prefix="",
-):
+    wandb_summary_prefix=""
+    ):
     """
     Train an EGI encoder.
 
@@ -103,6 +107,7 @@ def train_egi_encoder(
 
     """
 
+
     # input validation
     valid_feature_modes = ["degree_bucketing"]
     valid_optimisers = ["adam"]
@@ -160,6 +165,7 @@ def train_egi_encoder(
 
     model = model.to(device)
 
+    wandb.watch(model)
     # do transfer learning if we have pretrained weights
     if pre_train is not None:
         model.load_state_dict(torch.load(pre_train), strict=False)
@@ -170,25 +176,18 @@ def train_egi_encoder(
     best = 1e9
     best_epoch = -1
 
-    # setup cross-validation
-    fold_size = dgl_graph.num_nodes() // kfolds
-    assert fold_size >= 1
-
-    # shuffle nodes before putting into folds
+    # shuffle nodes before putting into train and validation sets
     indexes = torch.randperm(dgl_graph.nodes().shape[0])
-    folds = torch.split(dgl_graph.nodes()[indexes], fold_size)
+    validation_size = dgl_graph.nodes().shape[0] // 6
+    val_nodes  = torch.split(dgl_graph.nodes()[indexes], validation_size)[0]
+    train_nodes = torch.unique(torch.cat([val_nodes, dgl_graph.nodes()]))
 
     # start training
     for epoch in tqdm(range(n_epochs)):
-        current_fold = epoch % kfolds
-        val_nodes = folds[current_fold]
-        train_nodes = torch.unique(torch.cat([val_nodes, dgl_graph.nodes()]))
+        log = dict()
 
         # Enable training mode for model
         model.train()
-
-        if epoch >= 3:
-            t0 = time.time()
 
         loss = 0.0
 
@@ -207,8 +206,7 @@ def train_egi_encoder(
             optimizer.step()
             loss += l
 
-        if writer:
-            writer.add_scalar(f"{tb_prefix}/training-loss", loss, global_step=epoch)
+        log.update({"training-loss":loss})
 
         # validation
 
@@ -217,9 +215,12 @@ def train_egi_encoder(
         blocks = sampler.sample(dgl_graph, val_nodes)
         loss = model(dgl_graph, features, blocks)
 
+        log["validation-loss"] = loss
+
+
+        wandb.log(log)
         # early stopping
         if loss <= best + min_delta:
-            # https://machinelearningmastery.com/managing-a-pytorch-training-process-with-checkpoints-and-early-stopping/
             best = loss
             best_epoch = epoch
             # save current weights
@@ -228,16 +229,9 @@ def train_egi_encoder(
         if epoch - best_epoch > patience:
             print("Early stopping!")
             model.load_state_dict(torch.load("stopping"))
+            wandb.summary["encoder-epoch"] = best_epoch
             break
 
-        if writer:
-            writer.add_scalar(f"{tb_prefix}/validation-loss", loss, global_step=epoch)
-
-        if epoch >= 3 and writer is not None:
-            if writer:
-                writer.add_scalar(
-                    f"{tb_prefix}/time-per-epoch", time.time() - t0, global_step=epoch
-                )
 
     # save parameters for later fine-tuning if a save path is given
     if save_weights_to is not None:

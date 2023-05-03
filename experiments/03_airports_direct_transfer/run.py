@@ -1,38 +1,67 @@
-import datetime
-
 import dgl
+import datetime
+import itertools
 import graphtransferlearning as gtl
 import numpy as np
 import torch
 import torch.nn as nn
+import wandb
 from graphtransferlearning.features import degree_bucketing
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import train_test_split
-from torch.utils.tensorboard import SummaryWriter
+from IPython import embed
+
+
+from random import shuffle
 
 # some experimental constants
+
+
+# number of folds for cross validation
+KFOLDS= 10
+
+BATCHSIZE = 50
+LR = 0.01 
 HIDDEN_LAYERS = 32
 PATIENCE = 10
+MIN_DELTA = 0.01
 EPOCHS = 100
+N_RUNS = 10
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def main():
-    n = 10
+    models = ["egi", "triangle"]
+    ks = [1, 2, 3, 4]
 
-    current_date_time = datetime.datetime.now().strftime("%Y%m%dT%H:%M")
+    trials = list(itertools.product(models, ks))
+    shuffle(trials)
 
-    samplers = ["egi", "triangle"]
+    current_date_time = datetime.datetime.now().strftime("%Y%m%dT%H%M")
 
-    for sampler in samplers:
-        for i in range(n):
-            log_dir = f"./runs/{current_date_time}/{sampler}/{i}"
+    for model, k in trials:
+        for i in range(N_RUNS):
+            project = "03 Airport Direct Transfer"
+            name = f"{model}-k{k}-{i}"
+            entity = "sta-graph-transfer-learning"
+            group = f"Experiment run: {current_date_time}"
+            config = {
+                "model": model,
+                "k-hops": k,
+                "encoder-hidden-layers": HIDDEN_LAYERS,
+                "encoder-epochs": EPOCHS,
+                "encoder-patience": PATIENCE,
+                "encoder-min-delta": MIN_DELTA,
+                "encoder-lr":LR,
+                "encoder-batchsize":BATCHSIZE
+            }
 
-            print(f"Running experiment for {sampler} : {i+1}/{n}")
-
-            do_run(log_dir, sampler)
+            with wandb.init(
+                project=project, name=name, entity=entity, config=config, group=group
+            ) as run:
+                do_run(k, model)
 
 
 def load_dataset(edgefile, labelfile):
@@ -48,24 +77,8 @@ def load_dataset(edgefile, labelfile):
     return dgl_graph, labels[:, 1]
 
 
-def do_run(log_dir, sampler):
-    # setup tensorboard logging and visualisation.
-    writer = SummaryWriter(log_dir)
-    layout = {
-        "Experiment": {
-            "Source Encoder Loss": [
-                "Multiline",
-                ["src/training-loss", "src/validation-loss"],
-            ],
-        }
-    }
-
-    writer.add_custom_scalars(layout)
-
-    # keep track of summary results and experimental parameters for tensorboard
-    # to store later on.
-    results = dict()
-    hparams = {"model": sampler}
+def do_run(k, sampler):
+    wandb.config.update({"source-dataset": "europe", "target-dataset": "brazil"})
 
     ##########################################################################
     #                            DATA LOADING                                #
@@ -90,18 +103,21 @@ def do_run(log_dir, sampler):
     #                     TRAIN SOURCE ENCODER (EUROPE)                      #
     ##########################################################################
 
-    print("Training encoder for source data (Europe).")
+    # Training encoder for source data (Europe)
 
     encoder = gtl.training.train_egi_encoder(
         europe_g,
         gpu=0,
-        kfolds=10,
-        sampler=sampler,
+        n_epochs=EPOCHS,
+        k=k,
+        lr=LR,
         n_hidden_layers=HIDDEN_LAYERS,
+        kfolds=KFOLDS,
+        batch_size=BATCHSIZE,
         patience=PATIENCE,
+        min_delta=MIN_DELTA,
+        sampler=sampler,
         save_weights_to="srcmodel.pickle",
-        writer=writer,
-        tb_prefix="src",
     )
 
     embs = encoder(europe_g, europe_node_feats).to(torch.device("cpu")).detach().numpy()
@@ -110,28 +126,28 @@ def do_run(log_dir, sampler):
         embs, europe_labels
     )
 
-    classifier = SGDClassifier(max_iter=1000)
+    classifier = SGDClassifier()
     classifier = classifier.fit(train_embs, train_classes)
 
     score = classifier.score(val_embs, val_classes)
-    results.update({"hp/src-accuracy": score})
 
-    print(f"The source classifier has an accuracy score of {score}")
+    wandb.summary["source-classifier-accuracy"] = score
 
     ##########################################################################
     #                DIRECT TRANSFER TARGET ENCODER (BRAZIL)                 #
     ##########################################################################
 
-    target_encoder = gtl.models.EGI(
+    target_model = gtl.models.EGI(
         brazil_node_feats.shape[1],
         HIDDEN_LAYERS,
         2,  # see gtl.training.egi
         nn.PReLU(HIDDEN_LAYERS),
     ).to(device)
 
-    target_encoder.load_state_dict(torch.load("srcmodel.pickle"), strict=False)
+    target_model.load_state_dict(torch.load("srcmodel.pickle"), strict=False)
 
-    target_encoder = target_encoder.encoder
+    target_encoder = target_model.encoder
+
     target_embs = (
         target_encoder(brazil_g, brazil_node_feats)
         .to(torch.device("cpu"))
@@ -143,12 +159,12 @@ def do_run(log_dir, sampler):
         target_embs, brazil_labels
     )
 
-    classifier = SGDClassifier(max_iter=1000)
+    classifier = SGDClassifier()
     classifier = classifier.fit(train_embs, train_classes)
 
     score = classifier.score(target_embs, brazil_labels)
 
-    results.update({"hp/target-accuracy": score})
+    wandb.summary["target-classifier-accuracy"] = score
 
     print(f"The target classifier has an accuracy score of {score}")
 
@@ -156,11 +172,12 @@ def do_run(log_dir, sampler):
     #                      WRITE RESULTS TO TENSORBOARD                      #
     ##########################################################################
 
-    difference = results["hp/target-accuracy"] - results["hp/src-accuracy"]
-    results.update({"hp/difference": difference})
-    writer.add_hparams(hparams, results)
+    percentage_difference = (
+        wandb.summary["target-classifier-accuracy"]
+        - wandb.summary["source-classifier-accuracy"]
+    ) / wandb.summary["source-classifier-accuracy"]
 
-    return results
+    wandb.summary["% Difference"] = percentage_difference
 
 
 if __name__ == "__main__":
