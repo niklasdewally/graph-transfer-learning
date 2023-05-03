@@ -6,6 +6,7 @@ graph encoder (e.g. DGI, EGI, Node2Vec,...).
 
 import torch.nn as nn
 
+
 class LogisticRegression(nn.Module):
     """
     A logistic regression classifier.
@@ -16,10 +17,9 @@ class LogisticRegression(nn.Module):
                    the classifier.
     """
 
-    def __init__(self,input_dim,n_classes):
-        super(LogisticRegression,self).__init__()
-        self.linear = nn.Linear(input_dim,n_classes)
+    def __init__(self, input_dim, n_classes):
+        super(LogisticRegression, self).__init__()
+        self.linear = nn.Linear(input_dim, n_classes)
 
-    def forward(self,x):
+    def forward(self, x):
         return self.linear(x)
-

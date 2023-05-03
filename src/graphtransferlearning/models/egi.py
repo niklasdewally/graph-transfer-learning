@@ -3,17 +3,16 @@ import torch.nn as nn
 import math
 import torch.nn.functional as F
 import dgl
-from dgl.nn.pytorch import GraphConv, SAGEConv, GINConv
+from dgl.nn.pytorch import GINConv
 from dgl.nn.pytorch.glob import SumPooling, AvgPooling, MaxPooling
-import numpy as np
 
-from IPython import embed
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 class EGI(nn.Module):
 
-    """ 
+    """
     An implementation of EGI based on a SubGI model.
 
     The node encoder for this EGI model can be retrieved with .encoder.
@@ -30,16 +29,16 @@ class EGI(nn.Module):
             hyper-parameter.
 
         activation: The activation function for the model.
-        dropout: The dropout rate of the underlying layers. 
+        dropout: The dropout rate of the underlying layers.
             Defaults to 0.0.
     """
 
     def __init__(self, in_feats, n_hidden, n_layers, activation, dropout=0.0):
         super(EGI, self).__init__()
-        
-        self.encoder = _Encoder(in_feats, n_hidden, n_layers, activation,dropout)
-       
-        self.subg_disc = _SubGDiscriminator(in_feats, n_hidden) # Discriminator
+
+        self.encoder = _Encoder(in_feats, n_hidden, n_layers, activation, dropout)
+
+        self.subg_disc = _SubGDiscriminator(in_feats, n_hidden)  # Discriminator
 
         self.loss = nn.BCEWithLogitsLoss()
         self.in_feats = in_feats
@@ -47,7 +46,6 @@ class EGI(nn.Module):
         self.n_layers = n_layers
         self.activation = activation
         self.dropout = dropout
-    
 
     def forward(self, g, features, blocks):
         """
@@ -56,61 +54,64 @@ class EGI(nn.Module):
         For encoding, use .encoder.
         """
 
-        positive = self.encoder(g,features, corrupt=False)
-        
+        positive = self.encoder(g, features, corrupt=False)
+
         # generate negative edges through random permutation
         perm = torch.randperm(g.number_of_nodes())
         negative = positive[perm]
 
-        positive_batch = self.subg_disc(g,blocks, positive, features)
+        positive_batch = self.subg_disc(g, blocks, positive, features)
 
-        negative_batch = self.subg_disc(g,blocks, negative, features)
+        negative_batch = self.subg_disc(g, blocks, negative, features)
 
         E_pos, E_neg, l = 0.0, 0.0, 0.0
         pos_num, neg_num = 0, 0
 
-        
         for positive_edge, negative_edge in zip(positive_batch, negative_batch):
-
-            E_pos += get_positive_expectation(positive_edge, 'JSD', average=False).sum()
+            E_pos += get_positive_expectation(positive_edge, "JSD", average=False).sum()
             pos_num += positive_edge.shape[0]
 
-            E_neg += get_negative_expectation(negative_edge, 'JSD', average=False).sum()
+            E_neg += get_negative_expectation(negative_edge, "JSD", average=False).sum()
             neg_num += negative_edge.shape[0]
 
             l += E_neg - E_pos
 
-        assert(pos_num != 0)
-        assert(neg_num != 0)
+        assert pos_num != 0
+        assert neg_num != 0
 
         return E_neg / neg_num - E_pos / pos_num
-    
+
 
 class _Encoder(nn.Module):
-    """ 
+    """
 
     The EGI encoder.
 
     Produces node embeddings for a given graph based on structural node features.
 
     """
-    def __init__(self, in_feats, n_hidden, n_layers, activation,dropout):
-        super(_Encoder, self).__init__()
-        
-        self.conv = GIN(n_layers, 1, in_feats, n_hidden, n_hidden, dropout, True, 'sum', 'sum')
 
-    def forward(self,g,features, corrupt=False):
+    def __init__(self, in_feats, n_hidden, n_layers, activation, dropout):
+        super(_Encoder, self).__init__()
+
+        self.conv = GIN(
+            n_layers, 1, in_feats, n_hidden, n_hidden, dropout, True, "sum", "sum"
+        )
+
+    def forward(self, g, features, corrupt=False):
         if corrupt:
             perm = torch.randperm(g.number_of_nodes())
             features = features[perm]
-        features = self.conv(g,features)
+        features = self.conv(g, features)
         return features
+
 
 class _SubGDiscriminator(nn.Module):
     """
     The EGI discriminator.
     """
-    def __init__(self,in_feats, n_hidden, n_layers = 2):
+
+    def __init__(self, in_feats, n_hidden, n_layers=2):
         super(_SubGDiscriminator, self).__init__()
 
         self.k = n_layers
@@ -120,39 +121,37 @@ class _SubGDiscriminator(nn.Module):
         # discriminator convolutional layers
         # used to encode neighbor embeddings
         self.dc_layers = nn.ModuleList()
-        
+
         for i in range(n_layers):
             self.dc_layers.append(GNNDiscLayer(in_feats, n_hidden))
-       
+
         # these layers consist of the scoring function
-        self.linear = nn.Linear(in_feats + 2 * n_hidden, n_hidden, bias = True)
+        self.linear = nn.Linear(in_feats + 2 * n_hidden, n_hidden, bias=True)
         self.U_s = nn.Linear(n_hidden, 1)
 
-    def forward(self, g, blocks , emb, features):
-
-        # reverse all edges 
+    def forward(self, g, blocks, emb, features):
+        # reverse all edges
         reverse_edges = []
         # first two elements are in and out nodes
 
-        for i,block in enumerate(blocks[2]):
+        for i, block in enumerate(blocks[2]):
             # get edges from the block
             # https://github.com/dmlc/dgl/issues/1450
-            us,vs = g.find_edges(block.edata[dgl.EID])
-            reverse_edges += g.edge_ids(vs,us).tolist()
+            us, vs = g.find_edges(block.edata[dgl.EID])
+            reverse_edges += g.edge_ids(vs, us).tolist()
 
         small_g = g.edge_subgraph(reverse_edges)
-        small_g.ndata['root'] = emb[small_g.ndata['_ID']]
-        small_g.ndata['x'] = features[small_g.ndata['_ID']]
-        small_g.ndata['m']= torch.zeros_like(emb[small_g.ndata['_ID']])
+        small_g.ndata["root"] = emb[small_g.ndata["_ID"]]
+        small_g.ndata["x"] = features[small_g.ndata["_ID"]]
+        small_g.ndata["m"] = torch.zeros_like(emb[small_g.ndata["_ID"]])
 
         # translate from small_g IDs to parent IDS (or reverse using .index(v))
-        small_g_nodes = small_g.ndata['_ID']
+        small_g_nodes = small_g.ndata["_ID"]
 
         edge_embs = []
-        
-        #go through ego-graph hop edges in reverse
-        for i in range(len(blocks[2]))[::-1]:
 
+        # go through ego-graph hop edges in reverse
+        for i in range(len(blocks[2]))[::-1]:
             # get edges on given layer ids' in parent graph
             vs0 = blocks[2][i].dstdata[dgl.NID]
 
@@ -160,66 +159,65 @@ class _SubGDiscriminator(nn.Module):
             # https://stackoverflow.com/a/71833292
             vs = []
             for v in vs0:
-                res = (small_g_nodes ==v).nonzero()
-                #assert res.shape[0]>0,f"{v}"
-                if (res.shape[0] <= 0): 
+                res = (small_g_nodes == v).nonzero()
+                # assert res.shape[0]>0,f"{v}"
+                if res.shape[0] <= 0:
                     continue
                 vs.append(res[0])
 
-
-            us = small_g.out_edges(vs, 'eid')
+            us = small_g.out_edges(vs, "eid")
 
             if i == len(blocks[2]):
                 h = self.dc_layers[0](small_g, vs, us, 1)
             else:
                 h = self.dc_layers[0](small_g, vs, us, 2)
 
-    
             edge_embs.append(self.U_s(F.relu(self.linear(h))))
 
         return edge_embs
 
-       # # for every hop in the ego-graph
-       # for i in range(nf.num_blocks):
+    # # for every hop in the ego-graph
+    # for i in range(nf.num_blocks):
 
-       #     # pick nodes from an edge
-       #     u,v = self.g.find_edges(nf.block_parent_eid(i))
+    #     # pick nodes from an edge
+    #     u,v = self.g.find_edges(nf.block_parent_eid(i))
 
-       #     # add the reverse edge (WHY reverse?) to a list
-       #     reverse_edges += self.g.edge_ids(v,u).numpy().tolist()
-       #     
-       # # induce a subgraph based on these edges
-       # small_g = self.g.edge_subgraph( reverse_edges)
+    #     # add the reverse edge (WHY reverse?) to a list
+    #     reverse_edges += self.g.edge_ids(v,u).numpy().tolist()
+    #
+    # # induce a subgraph based on these edges
+    # small_g = self.g.edge_subgraph( reverse_edges)
 
-       # # ???
-       # small_g.ndata['root'] = emb[small_g.ndata['_ID']]
-       # small_g.ndata['x'] = features[small_g.ndata['_ID']]
-       # small_g.ndata['m']= torch.zeros_like(emb[small_g.ndata['_ID']])
+    # # ???
+    # small_g.ndata['root'] = emb[small_g.ndata['_ID']]
+    # small_g.ndata['x'] = features[small_g.ndata['_ID']]
+    # small_g.ndata['m']= torch.zeros_like(emb[small_g.ndata['_ID']])
 
-       # edge_embs = []
-       # 
-       # go through ego-graph hop edges in reverse
-       # for i in range(nf.num_blocks)[::-1]:
+    # edge_embs = []
+    #
+    # go through ego-graph hop edges in reverse
+    # for i in range(nf.num_blocks)[::-1]:
 
-            # get edges on given layer ids' in ego_graph
-       #     v = small_g.map_to_subgraph_nid(nf.layer_parent_nid(i+1))
-       #     uid = small_g.out_edges(v, 'eid')
+    # get edges on given layer ids' in ego_graph
+    #     v = small_g.map_to_subgraph_nid(nf.layer_parent_nid(i+1))
+    #     uid = small_g.out_edges(v, 'eid')
 
-       #     if i+1 == nf.num_blocks:
-       #         h = self.dc_layers[0](small_g, v, uid, 1)
-       #     else:
-       #         h = self.dc_layers[0](small_g, v, uid, 2)
+    #     if i+1 == nf.num_blocks:
+    #         h = self.dc_layers[0](small_g, v, uid, 1)
+    #     else:
+    #         h = self.dc_layers[0](small_g, v, uid, 2)
 
-    
-       #     edge_embs.append(self.U_s(F.relu(self.linear(h))))
+    #     edge_embs.append(self.U_s(F.relu(self.linear(h))))
 
-       # return edge_embs
+    # return edge_embs
 
 
 # Functions below copied verbatim from original egi code, for use in this model
 
+
 class MLP(nn.Module):
     """MLP with linear output"""
+
     def __init__(self, num_layers, input_dim, hidden_dim, output_dim):
         """MLP layers construction
         Paramters
@@ -271,9 +269,19 @@ class MLP(nn.Module):
 
 class GIN(nn.Module):
     """GIN model"""
-    def __init__(self,num_layers, num_mlp_layers, input_dim, hidden_dim,
-                 output_dim, final_dropout, learn_eps, graph_pooling_type,
-                 neighbor_pooling_type):
+
+    def __init__(
+        self,
+        num_layers,
+        num_mlp_layers,
+        input_dim,
+        hidden_dim,
+        output_dim,
+        final_dropout,
+        learn_eps,
+        graph_pooling_type,
+        neighbor_pooling_type,
+    ):
         """model parameters setting
         Paramters
         ---------
@@ -312,7 +320,8 @@ class GIN(nn.Module):
                 mlp = MLP(num_mlp_layers, hidden_dim, hidden_dim, hidden_dim)
 
             self.ginlayers.append(
-                GINConv(ApplyNodeFunc(mlp), neighbor_pooling_type, 0, self.learn_eps))
+                GINConv(ApplyNodeFunc(mlp), neighbor_pooling_type, 0, self.learn_eps)
+            )
             self.batch_norms.append(nn.BatchNorm1d(hidden_dim))
 
         # Linear function for graph poolings of output of each layer
@@ -321,37 +330,36 @@ class GIN(nn.Module):
 
         for layer in range(num_layers):
             if layer == 0:
-                self.linears_prediction.append(
-                    nn.Linear(input_dim, output_dim))
+                self.linears_prediction.append(nn.Linear(input_dim, output_dim))
             else:
-                self.linears_prediction.append(
-                    nn.Linear(hidden_dim, output_dim))
+                self.linears_prediction.append(nn.Linear(hidden_dim, output_dim))
 
         self.drop = nn.Dropout(final_dropout)
 
-        if graph_pooling_type == 'sum':
+        if graph_pooling_type == "sum":
             self.pool = SumPooling()
-        elif graph_pooling_type == 'mean':
+        elif graph_pooling_type == "mean":
             self.pool = AvgPooling()
-        elif graph_pooling_type == 'max':
+        elif graph_pooling_type == "max":
             self.pool = MaxPooling()
         else:
             raise NotImplementedError
 
-    def forward(self,g, h):
+    def forward(self, g, h):
         # list of hidden representation at each layer (including input)
         hidden_rep = [h]
 
         for i in range(self.num_layers):
             h = self.ginlayers[i](g, h)
             # print('batch norm')
-            # 
+            #
             h = self.batch_norms[i](h)
             h = F.relu(h)
             hidden_rep.append(h)
 
         # only need node embedding
         return h
+
 
 class FF(nn.Module):
     def __init__(self, input_dim):
@@ -362,14 +370,17 @@ class FF(nn.Module):
             nn.Linear(input_dim, input_dim),
             nn.ReLU(),
             nn.Linear(input_dim, input_dim),
-            nn.ReLU()
+            nn.ReLU(),
         )
         self.linear_shortcut = nn.Linear(input_dim, input_dim)
 
     def forward(self, x):
         return self.block(x) + self.linear_shortcut(x)
+
+
 class ApplyNodeFunc(nn.Module):
     """Update the node feature hv with MLP, BN and ReLU."""
+
     def __init__(self, mlp):
         super(ApplyNodeFunc, self).__init__()
         self.mlp = mlp
@@ -381,8 +392,10 @@ class ApplyNodeFunc(nn.Module):
         h = F.relu(h)
         return h
 
+
 class MLP(nn.Module):
     """MLP with linear output"""
+
     def __init__(self, num_layers, input_dim, hidden_dim, output_dim):
         """MLP layers construction
         Paramters
@@ -441,23 +454,23 @@ def get_positive_expectation(p_samples, measure, average=True):
     Returns:
         torch.Tensor
     """
-    log_2 = math.log(2.)
+    log_2 = math.log(2.0)
 
-    if measure == 'GAN':
-        Ep = - F.softplus(-p_samples)
-    elif measure == 'JSD':
-        Ep = log_2 - F.softplus(- p_samples)
-    elif measure == 'X2':
-        Ep = p_samples ** 2
-    elif measure == 'KL':
-        Ep = p_samples + 1.
-    elif measure == 'RKL':
+    if measure == "GAN":
+        Ep = -F.softplus(-p_samples)
+    elif measure == "JSD":
+        Ep = log_2 - F.softplus(-p_samples)
+    elif measure == "X2":
+        Ep = p_samples**2
+    elif measure == "KL":
+        Ep = p_samples + 1.0
+    elif measure == "RKL":
         Ep = -torch.exp(-p_samples)
-    elif measure == 'DV':
+    elif measure == "DV":
         Ep = p_samples
-    elif measure == 'H2':
-        Ep = 1. - torch.exp(-p_samples)
-    elif measure == 'W1':
+    elif measure == "H2":
+        Ep = 1.0 - torch.exp(-p_samples)
+    elif measure == "W1":
         Ep = p_samples
     else:
         raise_measure_error(measure)
@@ -477,23 +490,23 @@ def get_negative_expectation(q_samples, measure, average=True):
     Returns:
         torch.Tensor
     """
-    log_2 = math.log(2.)
+    log_2 = math.log(2.0)
 
-    if measure == 'GAN':
+    if measure == "GAN":
         Eq = F.softplus(-q_samples) + q_samples
-    elif measure == 'JSD':
+    elif measure == "JSD":
         Eq = F.softplus(-q_samples) + q_samples - log_2
-    elif measure == 'X2':
-        Eq = -0.5 * ((torch.sqrt(q_samples ** 2) + 1.) ** 2)
-    elif measure == 'KL':
+    elif measure == "X2":
+        Eq = -0.5 * ((torch.sqrt(q_samples**2) + 1.0) ** 2)
+    elif measure == "KL":
         Eq = torch.exp(q_samples)
-    elif measure == 'RKL':
-        Eq = q_samples - 1.
-    elif measure == 'DV':
+    elif measure == "RKL":
+        Eq = q_samples - 1.0
+    elif measure == "DV":
         Eq = log_sum_exp(q_samples, 0) - math.log(q_samples.size(0))
-    elif measure == 'H2':
-        Eq = torch.exp(q_samples) - 1.
-    elif measure == 'W1':
+    elif measure == "H2":
+        Eq = torch.exp(q_samples) - 1.0
+    elif measure == "W1":
         Eq = q_samples
     else:
         raise_measure_error(measure)
@@ -511,22 +524,25 @@ class GNNDiscLayer(nn.Module):
         self.layer_1 = True
 
     def reduce(self, nodes):
-        return {'m': F.relu(self.fc(nodes.data['x']) + nodes.mailbox['m'].mean(dim=1) )
-               ,'root':nodes.mailbox['root'].mean(dim=1)}
+        return {
+            "m": F.relu(self.fc(nodes.data["x"]) + nodes.mailbox["m"].mean(dim=1)),
+            "root": nodes.mailbox["root"].mean(dim=1),
+        }
 
     def msg(self, edges):
         if self.layer_1:
-            return {'m': self.fc(edges.src['x'])
-                   ,'root': edges.src['root']}
+            return {"m": self.fc(edges.src["x"]), "root": edges.src["root"]}
         else:
-            return {'m': self.fc(edges.src['m'])
-                   ,'root': edges.src['root']}
-    
+            return {"m": self.fc(edges.src["m"]), "root": edges.src["root"]}
+
     def edges(self, edges):
-        return {'output':torch.cat([edges.src['root'], edges.src['m'], edges.dst['x']], dim=1)}
+        return {
+            "output": torch.cat(
+                [edges.src["root"], edges.src["m"], edges.dst["x"]], dim=1
+            )
+        }
 
     def forward(self, g, v, edges, depth=1):
-
         if depth == 1:
             self.layer_1 = True
         else:
@@ -535,6 +551,5 @@ class GNNDiscLayer(nn.Module):
         g.apply_edges(self.edges, edges)
 
         g.push(v, self.msg, self.reduce)
-        
-        return g.edata.pop('output')[edges]
 
+        return g.edata.pop("output")[edges]

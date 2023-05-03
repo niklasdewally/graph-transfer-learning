@@ -1,17 +1,15 @@
 # Code adapted from https://github.com/GentleZhu/EGI/
 
-import torch
-import numpy as np
-from sklearn.manifold import SpectralEmbedding
 
-def spectral_embedding(graph,n_components):
+
+def spectral_embedding(graph, n_components):
     """
     Use spectral embedding to create a feature tensor representing the given graph.
 
     This function wraps sklearn - for more information on spectral embedding,
     refer to its user manual:
     https://scikit-learn.org/stable/modules/manifold.html#spectral-embedding
-    
+
     Args:
         graph (DGLGraphStale): A DGL graph.
 
@@ -26,18 +24,19 @@ def spectral_embedding(graph,n_components):
 
     """
 
-    raise NotImplementedError("This code has yet to be ported to the latest DGL version")
+    raise NotImplementedError(
+        "This code has yet to be ported to the latest DGL version"
+    )
 
-    #A = np.zeros([graph.number_of_nodes(), graph.number_of_nodes()])
-    #a,b = graph.all_edges()
+    # A = np.zeros([graph.number_of_nodes(), graph.number_of_nodes()])
+    # a,b = graph.all_edges()
     #
     ## add edges to a numpy array
-    #for id_a, id_b in zip(a.numpy().tolist(), b.numpy().tolist()):
+    # for id_a, id_b in zip(a.numpy().tolist(), b.numpy().tolist()):
     #    A[id_a, id_b] = 1
 
-    #embedding = SpectralEmbedding(n_components=args.n_hidden)
+    # embedding = SpectralEmbedding(n_components=args.n_hidden)
 
-    #features = torch.FloatTensor(embedding.fit_transform(A))
+    # features = torch.FloatTensor(embedding.fit_transform(A))
 
-    #return features
-
+    # return features

@@ -1,0 +1,36 @@
+diff --git a/experiments/01_citation_link_prediction_finetuning/run.py b/experiments/01_citation_link_prediction_finetuning/run.py
+index 7134476..f984c8a 100644
+--- a/experiments/01_citation_link_prediction_finetuning/run.py
++++ b/experiments/01_citation_link_prediction_finetuning/run.py
+@@ -124,6 +124,7 @@ def main(log_dir,sampler):
+     print("Training CORA encoder")
+     encoder = gtl.training.train_egi_encoder(cora,gpu=0,
+                                              kfolds=10,
++                                             patience=25,
+                                              save_weights_to=tmp_file,
+                                              sampler=sampler,
+                                              n_hidden_layers=HIDDEN_LAYERS,
+@@ -180,7 +181,6 @@ def main(log_dir,sampler):
+                                                       pre_train=tmp_file,
+                                                       sampler=sampler,
+                                                       n_hidden_layers=HIDDEN_LAYERS,
+-                                                      n_epochs=50,
+                                                       kfolds=3,
+                                                       writer=writer,
+                                                       tb_prefix='finetune')
+diff --git a/experiments/01_citation_link_prediction_finetuning/stopping b/experiments/01_citation_link_prediction_finetuning/stopping
+index f06500b..489c3a8 100644
+Binary files a/experiments/01_citation_link_prediction_finetuning/stopping and b/experiments/01_citation_link_prediction_finetuning/stopping differ
+diff --git a/src/graphtransferlearning/training/egi.py b/src/graphtransferlearning/training/egi.py
+index 24c3752..a6e557c 100755
+--- a/src/graphtransferlearning/training/egi.py
++++ b/src/graphtransferlearning/training/egi.py
+@@ -27,7 +27,7 @@ def train_egi_encoder(dgl_graph,
+                       kfolds = 10,
+                       sampler="egi",
+                       save_weights_to=None,
+-                      patience=25,
++                      patience=10,
+                       min_delta=0.01,
+                       writer=None,
+                       tb_prefix=""):
