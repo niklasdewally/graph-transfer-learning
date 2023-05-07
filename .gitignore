@@ -1,9 +1,20 @@
-
-*.pickle
-
+# Run data
 runs/
+wandb/
 models/
 !src/graphtransferlearning/models
+
+# Saved model checkpoints
+*.pickle
+*.pt 
+
+
+
+##############################################################################
+
+# Standard github python gitignore
+# ================================
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

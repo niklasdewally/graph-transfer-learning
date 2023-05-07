@@ -1,24 +1,20 @@
-import dgl
 import datetime
 import itertools
+
+from random import shuffle
+
+import dgl
 import graphtransferlearning as gtl
 import numpy as np
 import torch
 import torch.nn as nn
 import wandb
+
 from graphtransferlearning.features import degree_bucketing
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import train_test_split
-from IPython import embed
-
-
-from random import shuffle
 
 # some experimental constants
-
-
-# number of folds for cross validation
-KFOLDS= 10
 
 BATCHSIZE = 50
 LR = 0.01 
@@ -46,7 +42,7 @@ def main():
             project = "03 Airport Direct Transfer"
             name = f"{model}-k{k}-{i}"
             entity = "sta-graph-transfer-learning"
-            group = f"Experiment run: {current_date_time}"
+            group = f"Run: {current_date_time}"
             config = {
                 "model": model,
                 "k-hops": k,
@@ -107,17 +103,15 @@ def do_run(k, sampler):
 
     encoder = gtl.training.train_egi_encoder(
         europe_g,
-        gpu=0,
         n_epochs=EPOCHS,
         k=k,
         lr=LR,
         n_hidden_layers=HIDDEN_LAYERS,
-        kfolds=KFOLDS,
         batch_size=BATCHSIZE,
         patience=PATIENCE,
         min_delta=MIN_DELTA,
         sampler=sampler,
-        save_weights_to="srcmodel.pickle",
+        save_weights_to="srcmodel.pt",
     )
 
     embs = encoder(europe_g, europe_node_feats).to(torch.device("cpu")).detach().numpy()
@@ -144,7 +138,7 @@ def do_run(k, sampler):
         nn.PReLU(HIDDEN_LAYERS),
     ).to(device)
 
-    target_model.load_state_dict(torch.load("srcmodel.pickle"), strict=False)
+    target_model.load_state_dict(torch.load("srcmodel.pt"), strict=False)
 
     target_encoder = target_model.encoder
 
@@ -177,7 +171,7 @@ def do_run(k, sampler):
         - wandb.summary["source-classifier-accuracy"]
     ) / wandb.summary["source-classifier-accuracy"]
 
-    wandb.summary["% Difference"] = percentage_difference
+    wandb.summary["% Difference"] = percentage_difference * 100
 
 
 if __name__ == "__main__":

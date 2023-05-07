@@ -1,10 +1,8 @@
-import time
-import wandb
-
 import dgl
 import torch
 import torch.nn as nn
 import wandb
+
 from dgl.dataloading import DataLoader
 from tqdm import tqdm
 
@@ -12,7 +10,8 @@ import graphtransferlearning as gtl
 from graphtransferlearning.features import degree_bucketing
 from graphtransferlearning.models import EGI
 
-from IPython import embed
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 def train_egi_encoder(
     dgl_graph,
@@ -31,8 +30,6 @@ def train_egi_encoder(
     save_weights_to=None,
     patience=10,
     min_delta=0.01,
-    writer=None,
-    tb_prefix="",
     wandb_summary_prefix=""
     ):
     """
@@ -46,8 +43,6 @@ def train_egi_encoder(
 
     Args:
         dgl_graph: The input graph, as a DGLGraph.
-
-        gpu: The gpu device to use. Defaults to -1, which trains on the CPU.
 
         k: The number of hops to consider in the ego-graphs.
            Defaults to 2, which was shown to have the best results in the
@@ -80,8 +75,6 @@ def train_egi_encoder(
 
         batch_size: The number of nodes to consider in each training batch.
 
-        kfolds: The number of partitions to use in the data for cross-validation.
-
         sampler: The subgraph sampler to use.
             Options are ['egi','triangle']
             Defaults to 'egi'.
@@ -90,17 +83,6 @@ def train_egi_encoder(
             transfer learning.
 
             Defaults to None.
-
-        writer: A torch.utils.tensorboard.SummaryWriter. Used to write loss to
-                a tensor board.
-
-                the metrics {tb_prefix}/training-loss and
-                {tb_prefix}/validation-loss are saved.
-
-                Defaults to None.
-
-        tb_prefix: A prefix to attach to variables on tensor board.
-            Useful if a given model has multiple encoders.
 
     Returns:
         The trained EGI encoder model.
@@ -144,9 +126,6 @@ def train_egi_encoder(
         sampler = dgl.dataloading.NeighborSampler([10 for i in range(k)])
     elif sampler == "triangle":
         sampler = gtl.KHopTriangleSampler([10 for i in range(k)])
-
-    # are we running on a gpu?
-    device = "cpu" if gpu < 0 else f"cuda:{gpu}"
 
     features = features.to(device)
     dgl_graph = dgl_graph.to(device)
@@ -206,7 +185,7 @@ def train_egi_encoder(
             optimizer.step()
             loss += l
 
-        log.update({"training-loss":loss})
+        log.update({f"{wandb_summary_prefix}-training-loss":loss})
 
         # validation
 
@@ -215,8 +194,7 @@ def train_egi_encoder(
         blocks = sampler.sample(dgl_graph, val_nodes)
         loss = model(dgl_graph, features, blocks)
 
-        log["validation-loss"] = loss
-
+        log.update({f"{wandb_summary_prefix}-validation-loss":loss})
 
         wandb.log(log)
         # early stopping
@@ -224,12 +202,12 @@ def train_egi_encoder(
             best = loss
             best_epoch = epoch
             # save current weights
-            torch.save(model.state_dict(), "stopping")
+            torch.save(model.state_dict(), "stopping.pt")
 
         if epoch - best_epoch > patience:
             print("Early stopping!")
-            model.load_state_dict(torch.load("stopping"))
-            wandb.summary["encoder-epoch"] = best_epoch
+            model.load_state_dict(torch.load("stopping.pt"))
+            wandb.summary[f"{wandb_summary_prefix}-stopping-epoch"] = best_epoch
             break
 
 
