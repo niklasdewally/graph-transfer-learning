@@ -99,8 +99,12 @@ def do_run(k, sampler):
     )  # renumber nodes to be sequential integers
 
     pubmed = dgl.from_networkx(pubmed_nx)
-    if torch.cuda.is_available():
-        pubmed = pubmed.to("cuda:0")
+    pubmed = pubmed.to(device)
+
+
+    # track graph properties in configuration
+    
+    gtl.wandb.log_network_properties(pubmed_nx)
 
     ##########################################################################
     #            Base Case : Train directly on small pubmed graph            #
@@ -160,6 +164,7 @@ def do_run(k, sampler):
     ##########################################################################
 
     cora = CoraGraphDataset()[0].to(device)
+    gtl.wandb.log_network_properties(cora.cpu().to_simple().to_networkx())
 
     tmp_file = "tmp_pretrain.pt"
 

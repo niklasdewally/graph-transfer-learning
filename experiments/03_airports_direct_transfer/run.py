@@ -1,3 +1,23 @@
+"""
+
+The aim of this experiment is to learn node labels from a graph of the airports
+of one region, and transfer them to another region. This transfer will occur
+directly, without finetuning. 
+
+The node labels are the popularity of the airports, as quartiles (1-4).
+
+As described in [1].
+
+
+[1] Q. Zhu, C. Yang, Y. Xu, H. Wang, C. Zhang, and J. Han, 
+‘Transfer Learning of Graph Neural Networks with Ego-graph Information Maximization’, 
+in Advances in Neural Information Processing Systems, Curran Associates, Inc., 
+2021, pp. 1766–1779. Accessed: Mar. 07, 2023. [Online]. 
+Available: 
+https://proceedings.neurips.cc/paper/2021/hash/0dd6049f5fa537d41753be6d37859430-Abstract.html
+"""
+
+
 import datetime
 import itertools
 
@@ -11,6 +31,7 @@ import torch.nn as nn
 import wandb
 
 from graphtransferlearning.features import degree_bucketing
+from graphtransferlearning import degree_bucketing
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import train_test_split
 
@@ -29,6 +50,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def main():
+
     models = ["egi", "triangle"]
     ks = [1, 2, 3, 4]
 
@@ -94,6 +116,11 @@ def do_run(k, sampler):
     # node features for encoder
     europe_node_feats = degree_bucketing(europe_g, HIDDEN_LAYERS).to(device)
     brazil_node_feats = degree_bucketing(brazil_g, HIDDEN_LAYERS).to(device)
+
+
+    # save graph structural properties to wanb for analysis
+    gtl.wandb.log_network_properties(europe_g.cpu().to_simple().to_networkx(),prefix="source")
+    gtl.wandb.log_network_properties(brazil_g.cpu().to_simple().to_networkx(),prefix="target")
 
     ##########################################################################
     #                     TRAIN SOURCE ENCODER (EUROPE)                      #
