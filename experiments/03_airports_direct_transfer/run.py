@@ -190,7 +190,7 @@ def do_run(k, sampler):
     print(f"The target classifier has an accuracy score of {score}")
 
     ##########################################################################
-    #                      WRITE RESULTS TO TENSORBOARD                      #
+    #                      WRITE RESULTS TO WANDB                            #
     ##########################################################################
 
     percentage_difference = (

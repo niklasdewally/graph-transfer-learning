@@ -1,3 +1,0 @@
-"""
-Visualiations of graphs
-"""

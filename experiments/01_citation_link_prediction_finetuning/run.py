@@ -104,7 +104,7 @@ def do_run(k, sampler):
 
     # track graph properties in configuration
     
-    gtl.wandb.log_network_properties(pubmed_nx)
+    gtl.wandb.log_network_properties(pubmed_nx,prefix="pubmed-target")
 
     ##########################################################################
     #            Base Case : Train directly on small pubmed graph            #
@@ -164,7 +164,7 @@ def do_run(k, sampler):
     ##########################################################################
 
     cora = CoraGraphDataset()[0].to(device)
-    gtl.wandb.log_network_properties(cora.cpu().to_simple().to_networkx())
+    gtl.wandb.log_network_properties(cora.cpu().to_simple().to_networkx(),prefix="cora-source")
 
     tmp_file = "tmp_pretrain.pt"
 
