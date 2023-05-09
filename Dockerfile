@@ -1,4 +1,3 @@
-# devel:v2
 # Development container for this project
 # Automatically runs a jupyter notebook server
 
@@ -16,7 +15,7 @@ RUN pip install --upgrade pip
 RUN pip install  dgl -f https://data.dgl.ai/wheels/cu117/repo.html && \
     pip install  dglgo -f https://data.dgl.ai/wheels-test/repo.html
 
-RUN pip install --upgrade plotly scipy igraph networkx tqdm numpy jupyter_contrib_nbextensions torchmetrics wandb
+RUN pip install --upgrade plotly scipy igraph networkx tqdm numpy jupyter_contrib_nbextensions torchmetrics wandb IPython
 
 # Jupyter extensions
 RUN jupyter contrib nbextension install --user
