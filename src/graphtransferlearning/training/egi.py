@@ -5,6 +5,7 @@ import wandb
 
 from dgl.dataloading import DataLoader
 from tqdm import tqdm
+from warnings import warn
 
 import graphtransferlearning as gtl
 from graphtransferlearning.features import degree_bucketing
@@ -30,18 +31,20 @@ def train_egi_encoder(
     save_weights_to=None,
     patience=10,
     min_delta=0.01,
-    wandb_summary_prefix=""
-    ):
+    wandb_enabled=True,
+    wandb_summary_prefix="",
+):
     """
-    Train an EGI encoder.
+    Train an EGI [1] graph encoder.
 
     An EGI encoder produces node embeddings for a given graph, retaining
-    high-level strucutral features of the training graph to improve
+    high-level structural features of the training graph to improve
     transferability.
 
     It does this by considering k-hop ego graphs.
 
     Args:
+
         dgl_graph: The input graph, as a DGLGraph.
 
         k: The number of hops to consider in the ego-graphs.
@@ -63,6 +66,12 @@ def train_egi_encoder(
             Options are: ['adam'].
             Defaults to 'adam'.
 
+        batch_size: The number of nodes to consider in each training batch.
+
+        sampler: The subgraph sampler to use.
+            Options are ['egi','triangle']
+            Defaults to 'egi'.
+
         pre_train: Existing model parameters to use for fine tuning in transfer
             learning. This must be a path that points to a file saved by doing:
 
@@ -73,22 +82,48 @@ def train_egi_encoder(
             For more information, see
             https://pytorch.org/tutorials/beginner/saving_loading_models.html.
 
-        batch_size: The number of nodes to consider in each training batch.
-
-        sampler: The subgraph sampler to use.
-            Options are ['egi','triangle']
-            Defaults to 'egi'.
-
         save_weights_to: A file path to save EGI model parameters for use in
             transfer learning.
 
             Defaults to None.
 
+        patience: The number of epochs to wait before early stopping.
+
+            Defaults to 10.
+
+        min_delta:
+
+        wandb_enabled: Whether the training function is being called within a 
+            wandb run. If enabled, this will log loss metrics to wandb.
+
+            Defaults to True.
+
+        wandb_summary_prefix: A prefix to be appended to the wandb metrics for this
+            model.
+
+            Defaults to "".
+
+
+
     Returns:
         The trained EGI encoder model.
 
+
+    References:
+
+        [1] Q. Zhu, C. Yang, Y. Xu, H. Wang, C. Zhang, and J. Han, 
+        ‘Transfer Learning of Graph Neural Networks with Ego-graph Information 
+         Maximization’. 
+         arXiv, 2020. doi: 10.48550/ARXIV.2009.05204.
+
     """
 
+    if gpu != -1:
+        warn(
+            "Manually specifying a gpu number is deprecated."\
+            "This is determined automatically by the training function.",
+            DeprecationWarning,
+        )
 
     # input validation
     valid_feature_modes = ["degree_bucketing"]
@@ -144,7 +179,9 @@ def train_egi_encoder(
 
     model = model.to(device)
 
-    wandb.watch(model)
+    if wandb_enabled:
+        wandb.watch(model)
+
     # do transfer learning if we have pretrained weights
     if pre_train is not None:
         model.load_state_dict(torch.load(pre_train), strict=False)
@@ -158,7 +195,7 @@ def train_egi_encoder(
     # shuffle nodes before putting into train and validation sets
     indexes = torch.randperm(dgl_graph.nodes().shape[0])
     validation_size = dgl_graph.nodes().shape[0] // 6
-    val_nodes  = torch.split(dgl_graph.nodes()[indexes], validation_size)[0]
+    val_nodes = torch.split(dgl_graph.nodes()[indexes], validation_size)[0]
     train_nodes = torch.unique(torch.cat([val_nodes, dgl_graph.nodes()]))
 
     # start training
@@ -185,7 +222,7 @@ def train_egi_encoder(
             optimizer.step()
             loss += l
 
-        log.update({f"{wandb_summary_prefix}-training-loss":loss})
+        log.update({f"{wandb_summary_prefix}-training-loss": loss})
 
         # validation
 
@@ -194,9 +231,11 @@ def train_egi_encoder(
         blocks = sampler.sample(dgl_graph, val_nodes)
         loss = model(dgl_graph, features, blocks)
 
-        log.update({f"{wandb_summary_prefix}-validation-loss":loss})
+        log.update({f"{wandb_summary_prefix}-validation-loss": loss})
 
-        wandb.log(log)
+        if wandb_enabled:
+            wandb.log(log)
+
         # early stopping
         if loss <= best + min_delta:
             best = loss
@@ -207,9 +246,11 @@ def train_egi_encoder(
         if epoch - best_epoch > patience:
             print("Early stopping!")
             model.load_state_dict(torch.load("stopping.pt"))
-            wandb.summary[f"{wandb_summary_prefix}-stopping-epoch"] = best_epoch
-            break
 
+            if wandb_enabled:
+                wandb.summary[f"{wandb_summary_prefix}-early-stopping-epoch"] = best_epoch
+
+            break
 
     # save parameters for later fine-tuning if a save path is given
     if save_weights_to is not None:
