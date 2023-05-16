@@ -23,18 +23,14 @@ docker build . -t graph-transfer-learning/devel
 Then, run the container:
 
 ```
-docker run --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --runtime=nvidia -v "$(pwd):/workspace/mount" -p 8888:8888 --detach graph-transfer-learning/devel
+docker run --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --runtime=nvidia -v "$(pwd):/workspace -p 8888:8888 --detach graph-transfer-learning/devel
 ```
 
 
 * * * 
 
-* The repository on your local system will be mounted to the `/workspace/mount`
+* The repository on your local system will be mounted to the `/workspace/`
   folder in the container.
-
-* This container also runs a `Jupyter` server, which is 
-  accessible at `localhost:8888`.
-
 
 
 
