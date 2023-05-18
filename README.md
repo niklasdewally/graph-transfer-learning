@@ -1,25 +1,27 @@
 # graph-transfer-learning
 
 This repository contains on-going research into the transfer learning of
-Graph Neural Networks. 
+Graph Neural Networks.
 
 
 # Installation
 
 This project uses `poetry` for dependency management.
 
-The following systems are supported:
+The following system configurations are supported:
 
 | System type | Install methods | 
 |-------------|-----------------|
-| Linux with CUDA 11.7. | Docker, Poetry|
-| Apple Silcon Macs (with GPU acceleration)| Poetry|
+| Linux + CUDA 11.7 compatible card | Docker, Poetry|
+| Apple Silcon Macs (GPU accelerated) | Poetry|
+| Intel Macs (CPU) | Poetry|
 
 
+Further systems could be added (if desired) by adding the systems' `dgl` wheels to the `pyproject.toml` file.
 
 ## Docker
 
-An NVIDIA accelerated docker container running CUDA 11.7 has been provided.
+Docker container running CUDA 11.7 has been provided. A working installation of NVIDIA container toolkit on the host machine is requried for this to work.
 
 This has been tested on Ubuntu and a GTX 3060 card only.
 
@@ -38,30 +40,17 @@ Then, run the container:
 docker run --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --runtime=nvidia -v "$(pwd):/workspace graph-transfer-learning/devel
 ```
 
-* * * 
+The repository on your local system will be mounted to the `/workspace/` folder in the container.
 
-* The repository on your local system will be mounted to the `/workspace/`
-  folder in the container.
-
-# Poetry
+## Poetry
 
 After installing `poetry`, run `poetry shell` to enter the project environment.
 
-
-
-
-## M1 Macs (metal)
-
-A `nix` file has been provided to run the project on modern macs that support
-metal acceleration.
-
-
-With nix installed, run `nix-shell` in the current directory.
-
-
 # Usage
 
-TODO
+* Library code is contained within the `src` directory.
+
+* Individual experiments, and their data, are contained in sub-directories of the `experiments` folder.
 
 <!-- vim: tw=80 cc=80
 -->
