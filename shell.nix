@@ -23,11 +23,10 @@ in
       packages = [pkgs.python39 pkgs.neovim];
       shellHook = ''
         export VIRTUAL_ENV_DISABLE_PROMPT=1
-
         rm -rf .venv
         python3 -m venv .venv
         . .venv/bin/activate
-        pip install -r requirements.txt
+        pip install -r requirements.lock.txt
         pip install -e .
       '';
     }
