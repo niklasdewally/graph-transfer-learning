@@ -1,5 +1,5 @@
-cuda-python
 torch
+dgl
 gcmpy
 plotly 
 scipy 
@@ -7,8 +7,7 @@ igraph
 networkx 
 tqdm 
 numpy 
-jupyter
-jupyter_contrib_nbextensions 
 torchmetrics 
 wandb 
 IPython
+scikit-learn

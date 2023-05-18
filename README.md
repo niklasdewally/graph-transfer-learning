@@ -5,6 +5,8 @@ Graph Neural Networks.
 
 # Installation
 
+## CUDA 
+
 Currently, this code is ran through a NVIDIA accelerated docker container (as
 mandated by the university systems). 
 
@@ -32,6 +34,14 @@ docker run --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --runtime=n
 * The repository on your local system will be mounted to the `/workspace/`
   folder in the container.
 
+
+## M1 Macs (metal)
+
+A `nix` file has been provided to run the project on modern macs that support
+metal acceleration.
+
+
+With nix installed, run `nix-shell` in the current directory.
 
 
 # Usage

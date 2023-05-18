@@ -1,5 +1,4 @@
 # Development container for this project
-# Automatically runs a jupyter notebook server
 
 FROM nvcr.io/nvidia/cuda:11.7.0-runtime-ubuntu22.04
 
@@ -23,7 +22,7 @@ RUN pip install dgl -f https://data.dgl.ai/wheels/cu117/repo.html &&\
     pip install dglgo -f https://data.dgl.ai/wheels-test/repo.html
 
 # Jupyter extensions
-RUN jupyter contrib nbextension install --user
+#RUN jupyter contrib nbextension install --user
 
 # CMD ["jupyter notebook --ip='*' --NotebookApp.token='' --NotebookApp.password=''"]
 CMD ["bash"]
