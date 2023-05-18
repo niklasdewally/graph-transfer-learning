@@ -5,7 +5,11 @@
 
 cd /workspace
 
-pip install -e .
+export LD_LIBRARY_PATH=/usr/local/cuda-11.7/lib64:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=/usr/local/cuda-11.7/targets/x86_64-linux/lib/${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+export CUDA_HOME=/usr/local/cuda-11.7
 
+
+poetry install
 # pass through executable
-exec $@
+poetry run --  $@
