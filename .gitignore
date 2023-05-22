@@ -5,7 +5,7 @@
 runs/
 wandb/
 models/
-!src/graphtransferlearning/models
+!src/gtl/models
 
 # Saved model checkpoints
 *.pickle
