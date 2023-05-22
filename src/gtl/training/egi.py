@@ -11,6 +11,7 @@ from warnings import warn
 
 from ..features import degree_bucketing
 from ..models import EGI
+from ..samplers import KHopTriangleSampler
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -161,7 +162,7 @@ def train_egi_encoder(
     if sampler == "egi":
         sampler = dgl.dataloading.NeighborSampler([10 for i in range(k)])
     elif sampler == "triangle":
-        sampler = gtl.KHopTriangleSampler([10 for i in range(k)])
+        sampler = KHopTriangleSampler([10 for i in range(k)])
 
     features = features.to(device)
     dgl_graph = dgl_graph.to(device)
