@@ -1,0 +1,29 @@
+#! /bin/bash -- poetry run ipython -i interactive.ipy
+# coding: utf-8
+# ipython code for interactive development use inside a IPython REPL.
+
+get_ipython().run_line_magic('load_ext', 'autoreload')
+get_ipython().run_line_magic('autoreload', '2')
+
+import networkx as nx
+import matplotlib.pyplot as plt
+import gtl
+import gtl.gcmpy
+import gcmpy
+from statistics import *
+
+def draw_graph_to_file(G,filename,title=""):
+    plt.clf()
+    plt.cla()
+    fig = plt.figure()
+    fig.suptitle(title)
+    pos = nx.spring_layout(G)
+    nx.draw_networkx_nodes(G,pos=pos,node_size=50)
+    nx.draw_networkx_edges(G,pos=pos,alpha=0.3)
+    plt.savefig(filename)
+
+
+print("GTL interactive environment loaded!")
+
+
+# vim: ft=python

@@ -1,5 +1,5 @@
 [project]
-name = "graphtransferlearning"
+name = "graphtransferlearing"
 version = "0.0.1"
 dependencies = []
 
@@ -16,7 +16,7 @@ description = ""
 authors = ["Niklas Dewally <niklas@dewally.com>"]
 readme = "README.md"
 packages = [
-    { include = "graphtransferlearning", from = "src" },
+    { include = "gtl", from = "src" },
 ]
 
 
@@ -33,12 +33,13 @@ scipy = "^1.10.1"
 igraph = "^0.10.4"
 networkx = "^2.6"
 tqdm = "^4.65.0"
-numpy = "^1.22.0"
 torchmetrics = "^0.11.4"
 wandb = "^0.15.3"
 ipython = "^8.13.2"
 scikit-learn = "^1.2.2"
-cuda-python = "^12.1.0"
+matplotlib = "~3.1"
+pydot = "^1.4.2"
+agraph = "^0.0.3"
 
 
 [build-system]
