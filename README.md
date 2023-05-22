@@ -1,6 +1,6 @@
 # graph-transfer-learning
 
-This repository contains on-going research into the transfer learning of
+This repository contains ongoing research into the transfer learning of
 Graph Neural Networks.
 
 
