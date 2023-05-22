@@ -123,7 +123,7 @@ def _generate_n_graphs(
     for i in tqdm(range(n)):
         filename = get_filename(i)
         g = next(generator)
-        nx.write_edgelist(g, filename)
+        nx.write_edgelist(g, filename,data=False)
         gs.append(g)
     return gs
 

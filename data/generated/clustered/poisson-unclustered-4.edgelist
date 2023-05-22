@@ -1,214 +1,245 @@
-82 42 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 0}
-82 11 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 46}
-82 80 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 77}
-82 12 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 92}
-82 90 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 176}
-82 17 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 200}
-42 53 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 162}
-42 46 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 108}
-61 86 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 1}
-61 20 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 212}
-61 58 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 59}
-61 28 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 149}
-61 62 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 152}
-61 50 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 173}
-86 22 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 76}
-86 31 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 190}
-86 9 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 172}
-69 18 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 2}
-69 20 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 15}
-69 80 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 62}
-69 52 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 102}
-69 22 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 124}
-69 64 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 182}
-18 83 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 34}
-18 53 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 40}
-18 1 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 194}
-80 45 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 3}
-80 8 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 19}
-80 65 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 140}
-80 3 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 183}
-45 66 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 8}
-45 93 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 107}
-45 2 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 110}
-8 85 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 4}
-8 90 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 26}
-8 77 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 130}
-8 65 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 186}
-85 0 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 67}
-85 66 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 85}
-85 92 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 121}
-85 78 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 170}
-10 54 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 5}
-10 43 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 68}
-10 90 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 94}
-10 95 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 122}
-10 46 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 205}
-54 35 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 66}
-96 92 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 6}
-96 68 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 79}
-96 28 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 82}
-96 4 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 201}
-92 57 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 30}
-92 71 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 71}
-92 97 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 128}
-66 5 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 7}
-66 57 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 25}
-66 76 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 74}
-66 25 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 113}
-66 4 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 204}
-5 76 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 96}
-5 94 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 178}
-5 6 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 181}
-5 26 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 195}
-1 60 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 9}
-1 81 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 70}
-1 68 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 93}
-60 41 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 11}
-60 49 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 12}
-60 70 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 23}
-60 56 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 58}
-60 11 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 69}
-60 84 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 81}
-60 16 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 83}
-60 73 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 88}
-60 93 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 91}
-60 91 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 148}
-60 32 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 158}
-60 64 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 184}
-60 2 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 193}
-60 20 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 208}
-60 97 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 209}
-88 71 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 10}
-88 91 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 17}
-88 22 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 18}
-88 33 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 27}
-88 41 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 132}
-88 50 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 161}
-88 31 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 191}
-71 65 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 57}
-71 7 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 103}
-41 97 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 98}
-41 57 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 171}
-41 63 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 179}
-49 30 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 14}
-49 34 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 87}
-49 99 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 118}
-49 91 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 147}
-49 12 {<NetworkNames.TOPOLOGY: 'topology'>: '3-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 215}
-49 52 {<NetworkNames.TOPOLOGY: 'topology'>: '3-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 215}
-7 84 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 64}
-7 0 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 136}
-7 83 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 145}
-84 26 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 100}
-84 50 {<NetworkNames.TOPOLOGY: 'topology'>: '3-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 214}
-20 57 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 169}
-53 52 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 28}
-53 93 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 115}
-91 16 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 42}
-91 6 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 203}
-91 31 {<NetworkNames.TOPOLOGY: 'topology'>: '3-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 216}
-91 11 {<NetworkNames.TOPOLOGY: 'topology'>: '3-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 216}
-22 75 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 20}
-22 27 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 137}
-75 81 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 97}
-75 29 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 123}
-75 67 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 164}
-98 34 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 21}
-98 77 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 185}
-98 62 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 104}
-98 56 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 134}
-98 90 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 174}
-34 21 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 84}
-11 19 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 22}
-11 0 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 80}
-11 48 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 165}
-11 95 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 168}
-11 26 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 175}
-11 31 {<NetworkNames.TOPOLOGY: 'topology'>: '3-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 216}
-19 48 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 45}
-19 35 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 52}
-19 14 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 89}
-19 29 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 90}
-19 74 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 192}
-19 68 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 207}
-70 6 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 50}
-70 50 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 109}
-37 12 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 24}
-37 4 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 60}
-12 26 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 144}
-12 52 {<NetworkNames.TOPOLOGY: 'topology'>: '3-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 215}
-90 74 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 139}
-90 95 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 213}
-33 73 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 37}
-33 21 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 95}
-33 46 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 111}
-33 58 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 133}
-33 27 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 155}
-52 74 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 49}
-52 25 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 53}
-52 68 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 63}
-52 79 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 126}
-52 43 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 210}
-62 73 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 29}
-73 94 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 177}
-14 64 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 31}
-14 95 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 44}
-14 99 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 131}
-14 17 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 189}
-14 48 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 199}
-64 93 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 43}
-64 16 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 116}
-64 24 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 117}
-64 59 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 138}
-64 65 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 159}
-28 68 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 33}
-28 17 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 112}
-28 3 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 157}
-28 0 {<NetworkNames.TOPOLOGY: 'topology'>: '3-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 217}
-28 72 {<NetworkNames.TOPOLOGY: 'topology'>: '3-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 217}
-83 27 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 163}
-26 6 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 35}
-26 43 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 47}
-26 15 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 206}
-6 4 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 51}
-6 78 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 166}
-63 77 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 36}
-63 25 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 106}
-63 23 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 143}
-77 47 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 65}
-77 78 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 151}
-74 46 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 38}
-74 40 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 150}
-0 2 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 73}
-0 72 {<NetworkNames.TOPOLOGY: 'topology'>: '3-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 217}
-47 3 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 41}
-47 23 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 61}
-3 38 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 86}
-3 23 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 135}
-3 2 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 141}
-16 32 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 142}
-93 31 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 48}
-93 67 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 55}
-93 40 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 160}
-93 97 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 198}
-93 99 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 211}
-95 72 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 72}
-48 94 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 54}
-48 15 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 101}
-4 29 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 154}
-25 87 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 202}
-94 24 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 78}
-67 2 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 114}
-67 81 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 127}
-67 38 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 129}
-58 55 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 146}
-23 89 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 99}
-72 36 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 105}
-72 32 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 180}
-39 89 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 75}
-21 55 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 125}
-36 87 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 196}
-17 9 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 153}
-99 44 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 156}
-55 9 {<NetworkNames.TOPOLOGY: 'topology'>: '2-clique', <NetworkNames.MOTIF_IDS: 'motif_ids'>: 197}
+92 0
+92 23
+92 18
+92 54
+92 74
+92 71
+92 25
+92 28
+0 97
+0 5
+0 48
+0 67
+0 40
+0 39
+0 4
+48 87
+48 56
+48 83
+48 23
+48 93
+48 44
+87 82
+87 57
+87 42
+87 80
+87 34
+87 66
+56 28
+56 19
+56 74
+56 69
+56 63
+56 49
+7 4
+7 42
+4 13
+4 27
+4 90
+4 97
+88 37
+88 94
+88 49
+88 99
+37 27
+37 58
+37 64
+37 19
+37 74
+34 5
+34 12
+34 53
+5 82
+90 21
+90 71
+90 57
+90 9
+90 78
+23 74
+23 16
+23 73
+23 94
+23 61
+23 80
+74 97
+74 58
+74 11
+74 78
+74 64
+95 44
+95 70
+44 49
+44 99
+77 75
+77 99
+77 47
+77 29
+77 40
+77 1
+77 25
+77 98
+77 17
+77 79
+77 21
+75 46
+75 2
+75 64
+75 82
+73 76
+73 21
+73 86
+76 51
+41 13
+41 99
+41 85
+41 31
+41 29
+41 55
+13 64
+13 50
+13 8
+13 36
+13 46
+13 65
+13 59
+89 10
+89 71
+89 14
+10 72
+10 82
+10 28
+49 40
+49 62
+40 62
+40 91
+40 36
+40 30
+40 14
+40 59
+40 20
+40 38
+40 60
+99 58
+99 81
+99 3
+16 19
+16 61
+16 80
+16 47
+70 51
+51 2
+51 17
+51 47
+42 58
+42 22
+42 30
+42 65
+42 12
+42 21
+58 17
+58 3
+58 43
+58 39
+83 36
+83 28
+27 31
+11 36
+47 8
+47 82
+47 62
+47 17
+8 29
+8 3
+72 31
+15 30
+15 63
+15 96
+30 33
+30 26
+30 29
+30 21
+2 3
+33 9
+33 22
+33 14
+33 65
+33 24
+33 26
+36 1
+36 31
+71 12
+71 21
+71 84
+98 21
+98 60
+97 3
+97 61
+97 79
+53 84
+53 45
+53 64
+84 91
+22 80
+22 63
+22 26
+79 3
+79 81
+79 46
+3 35
+3 86
+3 32
+3 18
+31 50
+17 66
+94 91
+94 67
+1 26
+1 55
+66 45
+66 93
+45 54
+19 69
+19 52
+19 82
+19 85
+61 38
+81 57
+81 68
+38 35
+38 24
+38 65
+38 52
+38 60
+35 91
+35 63
+35 62
+21 78
+21 57
+21 24
+21 65
+78 9
+32 54
+54 65
+80 62
+80 93
+80 24
+9 82
+9 67
+6 68
+68 18
+57 26
+12 25
+12 64
+18 14
+18 20
+63 52
+63 59
+29 93
+64 69
+50 52
+24 26
+46 59
+26 20
+67 43
+86 39
+55 39

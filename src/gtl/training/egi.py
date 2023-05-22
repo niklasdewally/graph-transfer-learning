@@ -28,7 +28,6 @@ def train_egi_encoder(
     optimiser="adam",
     pre_train=None,
     batch_size=50,
-    kfolds=10,
     sampler="egi",
     save_weights_to=None,
     patience=10,
