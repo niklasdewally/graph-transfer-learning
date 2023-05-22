@@ -50,7 +50,9 @@ After installing `poetry`, run `poetry shell` to enter the project environment.
 
 * Library code is contained within the `src` directory.
 
-* Individual experiments, and their data, are contained in sub-directories of the `experiments` folder.
+* Executable code, including experiments, is contained in the `scripts`
+  directory. Remember to call `poetry shell` before running these (to enter the
+  virtual environment).
 
 <!-- vim: tw=80 cc=80
 -->
