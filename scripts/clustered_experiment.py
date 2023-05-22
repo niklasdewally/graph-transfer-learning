@@ -88,7 +88,7 @@ def main() -> None:
             for i in range(N_RUNS):
                 wandb.init(
                     project="Clustered Transfer",
-                    name=f"{model}-{graph_type}-{src}-{target}-{N_RUNS}",
+                    name=f"{model}-{graph_type}-{src}-{target}-{i}",
                     entity="sta-graph-transfer-learning",
                     group=f"Run {current_date_time}",
                     config={
