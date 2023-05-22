@@ -9,6 +9,7 @@ import gtl.gcmpy
 import sys
 import networkx as nx
 from tqdm import tqdm
+import argparse
 
 from statistics import mean
 
@@ -18,7 +19,7 @@ from collections.abc import Callable, Iterator
 # setup directorys to use for storing data
 SCRIPT_DIR = pathlib.Path(__file__).parent.resolve()
 PROJECT_DIR = SCRIPT_DIR.parent.resolve()
-DATA_DIR = PROJECT_DIR / "data" / "generated" / "gcmpy"
+DATA_DIR = PROJECT_DIR / "data" / "generated" / "clustered"
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -132,7 +133,7 @@ def _is_dir_empty(path):
 
 
 def _confirm_choice(msg):
-    answer = input(f"{msg} [y/n] (default: n)")
+    answer = input(f"{msg} [y/n] (default: n) ")
     if answer.lower() in ["y", "yes"]:
         return True
     else:
@@ -140,4 +141,7 @@ def _confirm_choice(msg):
 
 
 if __name__ == "__main__":
-    generate()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--overwrite', action=argparse.BooleanOptionalAction)
+    args = parser.parse_args()
+    generate(overwrite = args.overwrite)
