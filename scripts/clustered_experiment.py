@@ -2,7 +2,7 @@ import datetime
 import itertools
 import pathlib
 import sys
-from random import shuffle,randint
+from random import shuffle, randint, sample
 
 import dgl
 import gtl.features
@@ -14,7 +14,9 @@ import torch.nn as nn
 import wandb
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import train_test_split
+from dgl.sampling import global_uniform_negative_sampling
 
+from IPython import embed
 SCRIPT_DIR = pathlib.Path(__file__).parent.resolve()
 PROJECT_DIR = SCRIPT_DIR.parent.resolve()
 DATA_DIR = PROJECT_DIR / "data" / "generated" / "clustered"
@@ -28,7 +30,7 @@ PATIENCE = 10
 MIN_DELTA = 0.01
 EPOCHS = 100
 K = 3
-N_RUNS=5
+N_RUNS = 5
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -124,31 +126,53 @@ def _do_run(model: str, graph_type: str, src: str, target: str) -> None:
 
     embs = encoder(src_g, features)
 
-    src_nx: nx.Graph = dgl.to_networkx(src_g)
-    positive_edges = list(src_nx.edges(data=False))
-    nodes = list(src_nx.nodes(data=False))
-    negative_edges = _generate_negative_edges(positive_edges, nodes, len(positive_edges))
+    # generate negative edges
+    negative_us, negative_vs = global_uniform_negative_sampling(
+        src_g, (src_g.num_edges())
+    )
 
-    # create edge embeddings
-    edges = []
-    values = []
+    # get and shuffle positive edges
+    shuffle_mask = torch.randperm(src_g.num_edges())
+    us, vs = src_g.edges()
+    us = us[shuffle_mask]
+    vs = vs[shuffle_mask]
 
-    for u, v in positive_edges:
-        edges.append(_get_edge_embedding(embs, u, v))
-        values.append(1)
 
-    for u, v in negative_edges:
-        edges.append(_get_edge_embedding(embs, u, v))
-        values.append(0)
+
+    # convert into node embeddings
+    us = embs[us]
+    vs = embs[vs]
+    negative_us = embs[negative_us]
+    negative_vs = embs[negative_vs]
+
+
+    # convert into edge embeddings
+    positive_edges = us * vs
+    negative_edges = negative_us * negative_vs
+    
+    positive_values = torch.ones(positive_edges.shape[0])
+    negative_values = torch.zeros(negative_edges.shape[0])
+
+
+    # create shuffled edge and value list
+    edges = torch.cat((positive_edges,negative_edges),0)
+    values = torch.cat((positive_values,negative_values),0)
+
+    shuffle_mask = torch.randperm(edges.shape[0])
+    edges = edges[shuffle_mask]
+    values = values[shuffle_mask]
+    #embed()
+
+    # convert to lists for training
+    # TODO: train on gpu using pytorch
+
 
     train_edges, val_edges, train_classes, val_classes = train_test_split(edges, values)
-    train_edges = torch.stack(train_edges)  # list of tensors to 3d tensor
-    val_edges = torch.stack(val_edges)  # list of tensors to 3d tensor
 
     classifier = SGDClassifier(max_iter=1000)
-    classifier = classifier.fit(train_edges, train_classes)
+    classifier = classifier.fit(train_edges.detach().cpu(), train_classes.detach().cpu())
 
-    score = classifier.score(val_edges, val_classes)
+    score = classifier.score(val_edges.detach().cpu(), val_classes.detach().cpu())
 
     wandb.summary["source-accuracy"] = score
 
@@ -158,55 +182,54 @@ def _do_run(model: str, graph_type: str, src: str, target: str) -> None:
 
     features = gtl.features.degree_bucketing(target_g, HIDDEN_LAYERS)
     features = features.to(device)
+
     embs = encoder(target_g, features)
 
-    target_nx: nx.Graph = dgl.to_networkx(target_g)
-    positive_edges = list(target_nx.edges(data=False))
-    nodes = list(target_nx.nodes(data=False))
-    negative_edges = _generate_negative_edges(positive_edges, nodes, len(positive_edges))
+    # generate negative edges
+    negative_us, negative_vs = global_uniform_negative_sampling(
+        target_g, (target_g.num_edges())
+    )
 
-    # create edge embeddings
-    edges = []
-    values = []
+    # get and shuffle positive edges
+    shuffle_mask = torch.randperm(target_g.num_edges())
+    us, vs = target_g.edges()
+    us = us[shuffle_mask]
+    vs = vs[shuffle_mask]
 
-    for u, v in positive_edges:
-        edges.append(_get_edge_embedding(embs, u, v))
-        values.append(1)
+    # convert into node embeddings
+    us = embs[us]
+    vs = embs[vs]
+    negative_us = embs[negative_us]
+    negative_vs = embs[negative_vs]
 
-    for u, v in negative_edges:
-        edges.append(_get_edge_embedding(embs, u, v))
-        values.append(0)
+    # convert into edge embeddings
+    positive_edges = us * vs
+    negative_edges = negative_us * negative_vs
+    
+    positive_values = torch.ones(positive_edges.shape[0])
+    negative_values = torch.zeros(negative_edges.shape[0])
+
+
+    # create shuffled edge and value list
+    edges = torch.cat((positive_edges,negative_edges),0)
+    values = torch.cat((positive_values,negative_values),0)
+
+    shuffle_mask = torch.randperm(edges.shape[0])
+    edges = edges[shuffle_mask]
+    values = values[shuffle_mask]
+
+    # convert to lists for training
+    # TODO: train on gpu using pytorch
+
 
     train_edges, val_edges, train_classes, val_classes = train_test_split(edges, values)
-    train_edges = torch.stack(train_edges)  # list of tensors to 3d tensor
-    val_edges = torch.stack(val_edges)  # list of tensors to 3d tensor
 
     classifier = SGDClassifier(max_iter=1000)
-    classifier = classifier.fit(train_edges, train_classes)
+    classifier = classifier.fit(train_edges.detach().cpu(), train_classes.detach().cpu())
 
-    score = classifier.score(val_edges, val_classes)
+    score = classifier.score(val_edges.detach().cpu(), val_classes.detach().cpu())
 
     wandb.summary["target-accuracy"] = score
-
-
-def _generate_negative_edges(edges, nodes, n):
-    negative_edges = []
-    for i in range(n):
-        u = randint(0, len(nodes))
-        v = randint(0, len(nodes))
-        while (
-            u == v
-            or (u, v) in edges
-            or (v, u) in edges
-            or v not in nodes
-            or u not in nodes
-        ):
-            u = randint(0, n)
-            v = randint(0, n)
-
-        negative_edges.append((u, v))
-
-    return negative_edges
 
 
 def _get_edge_embedding(emb, a, b):

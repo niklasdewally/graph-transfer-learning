@@ -37,7 +37,7 @@ docker build . -t graph-transfer-learning/devel
 Then, run the container:
 
 ```
-docker run --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --runtime=nvidia -v "$(pwd):/workspace graph-transfer-learning/devel
+docker run -it --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --runtime=nvidia -v "$(pwd):/workspace" graph-transfer-learning/devel
 ```
 
 The repository on your local system will be mounted to the `/workspace/` folder in the container.
