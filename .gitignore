@@ -1,3 +1,6 @@
+# R
+*.Rproj
+.Rhistory
 # Images
 *.png
 
@@ -155,3 +158,4 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+.Rproj.user
