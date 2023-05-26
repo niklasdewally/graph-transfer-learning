@@ -26,7 +26,7 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 # constants
 
-N_NODES = 100
+N_NODES = [100,1000]
 
 
 def generate(overwrite: Optional[bool] = None) -> None:

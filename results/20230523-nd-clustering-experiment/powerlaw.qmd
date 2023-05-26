@@ -1,0 +1,65 @@
+---
+title: "Powerlaw Clustering Results"
+author: "Niklas Dewally"
+execute:
+  warning: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries, include=FALSE}
+library(readr)
+library(dplyr)
+library(knitr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+```
+
+```{r loaddata,include=FALSE}
+data <- read_csv("data.csv")
+```
+
+```{r pretty_table, echo=FALSE,message=FALSE}
+grouped<- data %>% group_by(src,target,model) %>% 
+  summarise(`source-accuracy` = mean(`source-accuracy`),
+            `target-accuracy` = mean(`target-accuracy`))
+
+knitr::kable(grouped)
+```
+* * * 
+
+```{r plotFunc, echo = FALSE, message=FALSE}
+
+plotMe <- function(df) {
+  p <- ggplot(df ,aes(x=`accuracy`,y=`label`,colour=`model`)) + 
+       geom_boxplot() + 
+       facet_grid(rows=vars(`src`),cols=vars(`target`)) +
+       ggtitle("Model types by source and target graph type (scale-free).")
+
+  return(p)
+}
+```
+
+
+```{r echo=FALSE, message=FALSE}
+plotData <- data %>%
+  pivot_longer(cols=c(`source-accuracy`,`target-accuracy`),
+               names_to="srctarget",values_to="accuracy") %>%
+
+  mutate(`srctarget`=str_replace(`srctarget`,"source-accuracy","source")) %>%
+  mutate(`srctarget`=str_replace(`srctarget`,"target-accuracy","target")) %>%    
+  unite(`srctarget`,`model`,col=`label`,sep=" ",remove=FALSE) 
+
+plotMe(plotData)
+```
+```{r echo=FALSE, message=FALSE}
+plotMe(filter(plotData,`srctarget` == "source"))
+```
+
+
+```{r echo=FALSE}
+plotMe(filter(plotData,`srctarget` == "source"))
+```
