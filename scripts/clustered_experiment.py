@@ -57,22 +57,22 @@ def _load_edgelist(path: pathlib.Path | str) -> dgl.DGLGraph:
 GRAPHS = {
     "scalefree": {
         "clustered": {
-            "src": _load_edgelist(DATA_DIR / "powerlaw-clustered-0.edgelist"),
-            "target": _load_edgelist(DATA_DIR / "powerlaw-clustered-1.edgelist"),
+            "src": _load_edgelist(DATA_DIR / "powerlaw-clustered-100-0.edgelist"),
+            "target": _load_edgelist(DATA_DIR / "powerlaw-clustered-100-1.edgelist"),
         },
         "unclustered": {
-            "src": _load_edgelist(DATA_DIR / "powerlaw-unclustered-0.edgelist"),
-            "target": _load_edgelist(DATA_DIR / "powerlaw-unclustered-1.edgelist"),
+            "src": _load_edgelist(DATA_DIR / "powerlaw-unclustered-100-0.edgelist"),
+            "target": _load_edgelist(DATA_DIR / "powerlaw-unclustered-100-1.edgelist"),
         },
     },
     "poisson": {
         "clustered": {
-            "src": _load_edgelist(DATA_DIR / "poisson-clustered-0.edgelist"),
-            "target": _load_edgelist(DATA_DIR / "poisson-clustered-1.edgelist"),
+            "src": _load_edgelist(DATA_DIR / "poisson-clustered-100-0.edgelist"),
+            "target": _load_edgelist(DATA_DIR / "poisson-clustered-100-1.edgelist"),
         },
         "unclustered": {
-            "src": _load_edgelist(DATA_DIR / "poisson-unclustered-0.edgelist"),
-            "target": _load_edgelist(DATA_DIR / "poisson-unclustered-1.edgelist"),
+            "src": _load_edgelist(DATA_DIR / "poisson-unclustered-100-0.edgelist"),
+            "target": _load_edgelist(DATA_DIR / "poisson-unclustered-100-1.edgelist"),
         },
     },
 }
