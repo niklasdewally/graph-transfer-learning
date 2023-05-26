@@ -1,4 +1,4 @@
-These reports use the [https://quarto.org/](quarto) publishing system alongside R.
+These reports use the [quarto](https://quarto.org/) publishing system alongside R.
 
 Either:
   * Install RStudio alongside the tidyverse set of packages, and use this to reproduce the report.
