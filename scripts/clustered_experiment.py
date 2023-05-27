@@ -18,6 +18,7 @@ from dgl.sampling import global_uniform_negative_sampling
 from gtl.clustered import get_filename
 
 from IPython import embed
+
 SCRIPT_DIR = pathlib.Path(__file__).parent.resolve()
 PROJECT_DIR = SCRIPT_DIR.parent.resolve()
 DATA_DIR = PROJECT_DIR / "data" / "generated" / "clustered"
@@ -39,6 +40,10 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 GRAPH_TYPES = ["powerlaw", "poisson"]
 MODELS = ["egi", "triangle"]
 
+# (soruce graph size, target graph size)
+# for fewshot learning (train on small, test on large)
+SIZES = [(100, 1000), (100, 100)]
+
 
 def _load_edgelist(path: pathlib.Path | str) -> dgl.DGLGraph:
     if not pathlib.Path(path).is_file():
@@ -55,23 +60,26 @@ def _load_edgelist(path: pathlib.Path | str) -> dgl.DGLGraph:
 
 # DATASETS
 
+
 def main() -> None:
-    # sweep model, graph type
-    trials = list(itertools.product(MODELS, GRAPH_TYPES))
+    # parameter sweep
+    trials = list(itertools.product(MODELS, GRAPH_TYPES, SIZES))
     shuffle(trials)
 
     current_date_time = datetime.datetime.now().strftime("%Y%m%dT%H%M")
 
-    for model, graph_type in trials:
-        for src, target in itertools.permutations([True, False], r=2):
+    for model, graph_type, sizes in trials:
+        # sizes of training graphs
+        src_size, target_size = sizes
 
-            src_name = ("clustered" if src else "unclustered")
-            target_name = ("clustered" if target else "unclustered")
+        for src, target in itertools.permutations([True, False], r=2):
+            src_name = "clustered" if src else "unclustered"
+            target_name = "clustered" if target else "unclustered"
 
             for i in range(N_RUNS):
                 wandb.init(
                     project="Clustered Transfer",
-                    name=f"{model}-{graph_type}-{src_name}-{target_name}-{i}",
+                    name=f"{model}-{graph_type}-{src_name}-{src_size}-{target_name}-{target_size}-{i}",
                     entity="sta-graph-transfer-learning",
                     group=f"Run {current_date_time}",
                     config={
@@ -79,16 +87,24 @@ def main() -> None:
                         "graph_type": graph_type,
                         "src": src,
                         "target": target,
+                        "src-size": src_size,
+                        "target-size": target_size,
                     },
                 )
 
-                _do_run(model, graph_type, src, target)
+                _do_run(model, graph_type, src, target, src_size, target_size)
                 wandb.finish()
 
 
-def _do_run(model: str, graph_type: str, src: str, target: str) -> None:
-    src_g: dgl.DGLGraph = _load_edgelist(DATA_DIR / get_filename(graph_type,src,100,0))
-    target_g: dgl.DGLGraph = _load_edgelist(DATA_DIR / get_filename(graph_type,target,100,1))
+def _do_run(
+    model: str, graph_type: str, src: str, target: str, src_size: int, target_size: int
+) -> None:
+    src_g: dgl.DGLGraph = _load_edgelist(
+        DATA_DIR / get_filename(graph_type, src, src_size, 0)
+    )
+    target_g: dgl.DGLGraph = _load_edgelist(
+        DATA_DIR / get_filename(graph_type, target, target_size, 1)
+    )
 
     encoder: nn.Module = gtl.training.train_egi_encoder(
         src_g,
@@ -118,40 +134,37 @@ def _do_run(model: str, graph_type: str, src: str, target: str) -> None:
     us = us[shuffle_mask]
     vs = vs[shuffle_mask]
 
-
-
     # convert into node embeddings
     us = embs[us]
     vs = embs[vs]
     negative_us = embs[negative_us]
     negative_vs = embs[negative_vs]
 
-
     # convert into edge embeddings
     positive_edges = us * vs
     negative_edges = negative_us * negative_vs
-    
+
     positive_values = torch.ones(positive_edges.shape[0])
     negative_values = torch.zeros(negative_edges.shape[0])
 
-
     # create shuffled edge and value list
-    edges = torch.cat((positive_edges,negative_edges),0)
-    values = torch.cat((positive_values,negative_values),0)
+    edges = torch.cat((positive_edges, negative_edges), 0)
+    values = torch.cat((positive_values, negative_values), 0)
 
     shuffle_mask = torch.randperm(edges.shape[0])
     edges = edges[shuffle_mask]
     values = values[shuffle_mask]
-    #embed()
+    # embed()
 
     # convert to lists for training
     # TODO: train on gpu using pytorch
 
-
     train_edges, val_edges, train_classes, val_classes = train_test_split(edges, values)
 
     classifier = SGDClassifier(max_iter=1000)
-    classifier = classifier.fit(train_edges.detach().cpu(), train_classes.detach().cpu())
+    classifier = classifier.fit(
+        train_edges.detach().cpu(), train_classes.detach().cpu()
+    )
 
     score = classifier.score(val_edges.detach().cpu(), val_classes.detach().cpu())
 
@@ -186,14 +199,13 @@ def _do_run(model: str, graph_type: str, src: str, target: str) -> None:
     # convert into edge embeddings
     positive_edges = us * vs
     negative_edges = negative_us * negative_vs
-    
+
     positive_values = torch.ones(positive_edges.shape[0])
     negative_values = torch.zeros(negative_edges.shape[0])
 
-
     # create shuffled edge and value list
-    edges = torch.cat((positive_edges,negative_edges),0)
-    values = torch.cat((positive_values,negative_values),0)
+    edges = torch.cat((positive_edges, negative_edges), 0)
+    values = torch.cat((positive_values, negative_values), 0)
 
     shuffle_mask = torch.randperm(edges.shape[0])
     edges = edges[shuffle_mask]
@@ -202,11 +214,12 @@ def _do_run(model: str, graph_type: str, src: str, target: str) -> None:
     # convert to lists for training
     # TODO: train on gpu using pytorch
 
-
     train_edges, val_edges, train_classes, val_classes = train_test_split(edges, values)
 
     classifier = SGDClassifier(max_iter=1000)
-    classifier = classifier.fit(train_edges.detach().cpu(), train_classes.detach().cpu())
+    classifier = classifier.fit(
+        train_edges.detach().cpu(), train_classes.detach().cpu()
+    )
 
     score = classifier.score(val_edges.detach().cpu(), val_classes.detach().cpu())
 
