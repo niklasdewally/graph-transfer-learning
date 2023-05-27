@@ -27,9 +27,9 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 # constants
 
 
-def generate(
-    overwrite: Optional[bool] = None, sizes: [int] = [100, 1000], dry_run: bool = False
-) -> None:
+def generate(overwrite: Optional[bool] = None, 
+             sizes: [int] = [100, 1000], 
+             dry_run: bool = False) -> None:
     n = 5
     if not _is_dir_empty(DATA_DIR) and not dry_run:
         if overwrite is None:

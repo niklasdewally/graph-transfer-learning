@@ -15,6 +15,7 @@ import wandb
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import train_test_split
 from dgl.sampling import global_uniform_negative_sampling
+from gtl.clustered import get_filename
 
 from IPython import embed
 SCRIPT_DIR = pathlib.Path(__file__).parent.resolve()
@@ -30,12 +31,12 @@ PATIENCE = 10
 MIN_DELTA = 0.01
 EPOCHS = 100
 K = 3
-N_RUNS = 5
+N_RUNS = 20
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Parameters to sweep
-GRAPH_TYPES = ["scalefree", "poisson"]
+GRAPH_TYPES = ["powerlaw", "poisson"]
 MODELS = ["egi", "triangle"]
 
 
@@ -54,30 +55,6 @@ def _load_edgelist(path: pathlib.Path | str) -> dgl.DGLGraph:
 
 # DATASETS
 
-GRAPHS = {
-    "scalefree": {
-        "clustered": {
-            "src": _load_edgelist(DATA_DIR / "powerlaw-clustered-100-0.edgelist"),
-            "target": _load_edgelist(DATA_DIR / "powerlaw-clustered-100-1.edgelist"),
-        },
-        "unclustered": {
-            "src": _load_edgelist(DATA_DIR / "powerlaw-unclustered-100-0.edgelist"),
-            "target": _load_edgelist(DATA_DIR / "powerlaw-unclustered-100-1.edgelist"),
-        },
-    },
-    "poisson": {
-        "clustered": {
-            "src": _load_edgelist(DATA_DIR / "poisson-clustered-100-0.edgelist"),
-            "target": _load_edgelist(DATA_DIR / "poisson-clustered-100-1.edgelist"),
-        },
-        "unclustered": {
-            "src": _load_edgelist(DATA_DIR / "poisson-unclustered-100-0.edgelist"),
-            "target": _load_edgelist(DATA_DIR / "poisson-unclustered-100-1.edgelist"),
-        },
-    },
-}
-
-
 def main() -> None:
     # sweep model, graph type
     trials = list(itertools.product(MODELS, GRAPH_TYPES))
@@ -86,11 +63,15 @@ def main() -> None:
     current_date_time = datetime.datetime.now().strftime("%Y%m%dT%H%M")
 
     for model, graph_type in trials:
-        for src, target in itertools.permutations(["clustered", "unclustered"], r=2):
+        for src, target in itertools.permutations([True, False], r=2):
+
+            src_name = ("clustered" if src else "unclustered")
+            target_name = ("clustered" if target else "unclustered")
+
             for i in range(N_RUNS):
                 wandb.init(
                     project="Clustered Transfer",
-                    name=f"{model}-{graph_type}-{src}-{target}-{i}",
+                    name=f"{model}-{graph_type}-{src_name}-{target_name}-{i}",
                     entity="sta-graph-transfer-learning",
                     group=f"Run {current_date_time}",
                     config={
@@ -106,8 +87,8 @@ def main() -> None:
 
 
 def _do_run(model: str, graph_type: str, src: str, target: str) -> None:
-    src_g: dgl.DGLGraph = GRAPHS[graph_type][src]["src"]
-    target_g: dgl_DGLGraph = GRAPHS[graph_type][src]["target"]
+    src_g: dgl.DGLGraph = _load_edgelist(DATA_DIR / get_filename(graph_type,src,100,0))
+    target_g: dgl.DGLGraph = _load_edgelist(DATA_DIR / get_filename(graph_type,target,100,1))
 
     encoder: nn.Module = gtl.training.train_egi_encoder(
         src_g,
