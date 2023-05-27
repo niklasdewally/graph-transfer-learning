@@ -85,8 +85,8 @@ def main() -> None:
                     config={
                         "model": model,
                         "graph_type": graph_type,
-                        "src": src,
-                        "target": target,
+                        "src": src_name,
+                        "target": target_name,
                         "src-size": src_size,
                         "target-size": target_size,
                     },
