@@ -42,7 +42,7 @@ MODELS = ["egi", "triangle"]
 
 # (soruce graph size, target graph size)
 # for fewshot learning (train on small, test on large)
-SIZES = [(100, 1000), (100, 100)]
+SIZES = [(100, 1000), (100, 100),(1000,1000)]
 
 
 def _load_edgelist(path: pathlib.Path | str) -> dgl.DGLGraph:
