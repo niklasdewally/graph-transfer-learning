@@ -27,10 +27,14 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 # constants
 
 
-def generate(overwrite: Optional[bool] = None, 
-             sizes: [int] = [100, 1000], 
-             dry_run: bool = False) -> None:
+def generate(
+    overwrite: Optional[bool] = None,
+    sizes: [int] = [100, 1000],
+    dry_run: bool = False,
+    verbose: bool = False,
+) -> None:
     n = 5
+
     if not _is_dir_empty(DATA_DIR) and not dry_run:
         if overwrite is None:
             if _confirm_choice("The data directory is not empty. Overwrite?"):
@@ -52,13 +56,15 @@ def generate(overwrite: Optional[bool] = None,
 
     # generate poisson graphs
     for size in sizes:
-        _generate_poisson(n, size, dry_run)
+        _generate_poisson(n, size, dry_run, verbose)
 
         # generate powerlaw graphs
-        _generate_powerlaw(n, size, dry_run)
+        _generate_powerlaw(n, size, dry_run, verbose)
 
 
-def _generate_poisson(n: int, size: int, dry_run: bool = False) -> None:
+def _generate_poisson(
+    n: int, size: int, dry_run: bool = False, verbose: bool = False
+) -> None:
     print(f"Generating poisson graphs of size {size}")
     clustered_generator = gtl.gcmpy.poisson.generator(4.7, 50, size)
     unclustered_generator = gtl.gcmpy.poisson.generator(4.7, 0.1, size)
@@ -79,6 +85,11 @@ def _generate_poisson(n: int, size: int, dry_run: bool = False) -> None:
 
     clustered_mean = mean([nx.average_clustering(g) for g in clustered])
     unclustered_mean = mean([nx.average_clustering(g) for g in unclustered])
+    if verbose:
+        for i, g in enumerate(clustered):
+            print(f"Clustered graph {i} has clustering {nx.average_clustering(g)}")
+        for i, g in enumerate(unclustered):
+            print(f"Unclustered graph {i} has clustering {nx.average_clustering(g)}")
 
     print(
         f"Size {size} clustered poisson graphs have mean clustering of {clustered_mean}"
@@ -88,7 +99,9 @@ def _generate_poisson(n: int, size: int, dry_run: bool = False) -> None:
     )
 
 
-def _generate_powerlaw(n: int, size: int, dry_run: bool = False) -> None:
+def _generate_powerlaw(
+    n: int, size: int, dry_run: bool = False, verbose: bool = False
+) -> None:
     # couldnt get good results with gcmpy with powerlaw
     # (after trying a similar method to poisson), so
     # we use networkx instead.
@@ -121,6 +134,12 @@ def _generate_powerlaw(n: int, size: int, dry_run: bool = False) -> None:
 
     clustered_mean = mean([nx.average_clustering(g) for g in clustered])
     unclustered_mean = mean([nx.average_clustering(g) for g in unclustered])
+
+    if verbose:
+        for i, g in enumerate(clustered):
+            print(f"Clustered graph {i} has clustering {nx.average_clustering(g)}")
+        for i, g in enumerate(unclustered):
+            print(f"Unclustered graph {i} has clustering {nx.average_clustering(g)}")
 
     print(
         f"Size {size} clustered powerlaw graphs have mean clustering of {clustered_mean}"
@@ -166,6 +185,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--overwrite", action=argparse.BooleanOptionalAction)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--verbose", action="store_true")
     parser.add_argument("--size", action="append", default=[100], type=int)
     args = parser.parse_args()
-    generate(overwrite=args.overwrite, sizes=args.size, dry_run=args.dry_run)
+    generate(
+        overwrite=args.overwrite,
+        sizes=args.size,
+        dry_run=args.dry_run,
+        verbose=args.verbose,
+    )
