@@ -27,7 +27,7 @@ data %>% filter(`graph_type` == "powerlaw")
 ```
 
 ```{r echo=FALSE,message=FALSE}
-grouped<- data %>% group_by(src,target,model,`src-size`,`target-size`) %>% 
+grouped<- data %>% group_by(src,target,`src-size`,`target-size`,model) %>% 
   summarise(`source-accuracy` = mean(`source-accuracy`),
             `target-accuracy` = mean(`target-accuracy`))
 

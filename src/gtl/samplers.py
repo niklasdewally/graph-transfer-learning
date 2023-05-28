@@ -17,8 +17,7 @@ class KHopTriangleSampler(Sampler):
         output_nodes = seed_nodes
         blocks = []
         for fanout in reversed(self.fanouts):
-            frontier = g.sample_neighbors(seed_nodes, fanout)
-
+            frontier = _sample_triangle_neighbors(g,seed_nodes,fanout)
             eids = frontier.edata[dgl.EID]
             block = dgl.to_block(frontier, seed_nodes)
             block.edata[dgl.EID] = eids
@@ -28,7 +27,7 @@ class KHopTriangleSampler(Sampler):
         return seed_nodes, output_nodes, blocks
 
 
-def _sample_triangle_neighbors(g, seed_nodes, fanout):
+def sample_triangle_neighbors(g, seed_nodes, fanout):
     """
 
     Sample triangles that contain the given nodes, and return the induced node subgraph.
@@ -49,16 +48,28 @@ def _sample_triangle_neighbors(g, seed_nodes, fanout):
             The number of edges to be sampled.
     """
 
-    edges = []
+    edges = torch.empty(0,dtype=torch.int64)
 
     for nid in seed_nodes:
-        neighbors = nid.successors()
-        for i in range(min(fanout, len(seed_nodes))):
+        neighbors = g.successors(nid)
+        triangles = []
+        count = 0
+        i = 0
+        while count < min(fanout,len(seed_nodes)) and i < len(seed_nodes):
+            # triangle found
             neighbor = neighbors[i]
-            triangle_edges = get_triangle(g, nid, neighbor)
+            for neighbor2 in neighbors:
+                if neighbor2 == neighbor:
+                    print("cont") 
+                    continue
+                if torch.all(g.has_edges_between([nid,nid,neighbor],[neighbor,neighbor2,neighbor2])):
+                    edges = torch.cat((edges,g.edge_ids([nid,nid,neighbor],[neighbor,neighbor2,neighbor2],return_uv=False)))
 
-            if triangle_edges is not None:
-                edges.append(triangle_edges)
+                    count += 1
+                    i += 1
+                    continue
+            # no triangle
+            i += 1
 
     # return node induced subgraph
     subg = dgl.edge_subgraph(g, edges)
