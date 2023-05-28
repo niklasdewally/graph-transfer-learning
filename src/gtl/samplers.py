@@ -17,9 +17,9 @@ class KHopTriangleSampler(Sampler):
         output_nodes = seed_nodes
         blocks = []
         for fanout in reversed(self.fanouts):
-            frontier = _sample_triangle_neighbors(g,seed_nodes,fanout)
+            frontier = sample_triangle_neighbors(g,seed_nodes,fanout)
             eids = frontier.edata[dgl.EID]
-            block = dgl.to_block(frontier, seed_nodes)
+            block = dgl.to_block(frontier)
             block.edata[dgl.EID] = eids
             seed_nodes = block.srcdata[dgl.NID]
             blocks.insert(0, block)
@@ -48,57 +48,36 @@ def sample_triangle_neighbors(g, seed_nodes, fanout):
             The number of edges to be sampled.
     """
 
-    edges = torch.empty(0,dtype=torch.int64)
+    edges = torch.empty(0,dtype=torch.int64).to(g.device)
 
     for nid in seed_nodes:
         neighbors = g.successors(nid)
+        if neighbors.shape[0] < 2:
+            continue
         triangles = []
         count = 0
         i = 0
-        while count < min(fanout,len(seed_nodes)) and i < len(seed_nodes):
-            # triangle found
-            neighbor = neighbors[i]
-            for neighbor2 in neighbors:
-                if neighbor2 == neighbor:
-                    print("cont") 
-                    continue
-                if torch.all(g.has_edges_between([nid,nid,neighbor],[neighbor,neighbor2,neighbor2])):
-                    edges = torch.cat((edges,g.edge_ids([nid,nid,neighbor],[neighbor,neighbor2,neighbor2],return_uv=False)))
 
-                    count += 1
-                    i += 1
-                    continue
+        triads = torch.combinations(neighbors)
+        while count < min(fanout,len(seed_nodes)) and i < len(triads):
+
+            neighbor = triads[i][0]
+            neighbor2 = triads[i][1]
+            if torch.all(g.has_edges_between([neighbor],[neighbor2])):
+                newedges = g.edge_ids([nid,nid,neighbor],[neighbor,neighbor2,neighbor2],return_uv=False).to(g.device)
+                edges = torch.cat((edges,newedges)).to(g.device)
+                count += 1
+                i += 1
+                continue
             # no triangle
             i += 1
 
     # return node induced subgraph
-    subg = dgl.edge_subgraph(g, edges)
+    subg = dgl.edge_subgraph(g, edges).to(g.device)
 
     # set node features
-    subg.edata[dgl.EID] = torch.tensor(edges)
+    subg.edata[dgl.EID] = edges.clone().detach()
 
     return subg
 
 
-def _in_triangle(g, node1, node2):
-    # these form a triangle if the two nodes have a common neighbor
-    node1_neighbors = g.successors(node2)
-    node2_neighbors = g.successors(node2)
-
-    # stick the two tensors together, and see if any nodes are eliminated when calling unique.
-    cat = torch.cat(node1_neighbors, node2_neighbors)
-    uniques = torch.unique(cat)
-
-    if cat.shape[0] == uniques.shape[0]:
-        print(f"{node1} -> {node2} does not form a triangle")
-        return None
-
-    # generate list of edge ids
-
-    us = torch.tensor([node1, node2])
-    vs = cat[cat != unique]
-    vs = vs[vs != us]
-    eids = g.find_edges(us, vs)
-    embed()
-
-    return eids
