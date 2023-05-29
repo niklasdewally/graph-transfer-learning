@@ -34,6 +34,7 @@ import wandb
 from gtl.features import degree_bucketing
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import train_test_split
+from torch.profiler import profile, record_function, ProfilerActivity
 
 # setup directorys to use for airport data
 SCRIPT_DIR = pathlib.Path(__file__).parent.resolve()
@@ -212,3 +213,4 @@ def do_run(k, sampler):
 
 if __name__ == "__main__":
     main()
+

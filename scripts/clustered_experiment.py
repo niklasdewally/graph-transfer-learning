@@ -37,13 +37,12 @@ N_RUNS = 3
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Parameters to sweep
-GRAPH_TYPES = ["powerlaw", "poisson"]
-MODELS = ["triangle"]
+GRAPH_TYPES = ["powerlaw"]
+MODELS = ["triangle","egi"]
 
 # (soruce graph size, target graph size)
 # for fewshot learning (train on small, test on large)
-#SIZES = [(100, 1000), (100, 100),(1000,1000)]
-SIZES = [(100,100)]
+SIZES = [(100, 1000), (100, 100),(1000,1000)]
 
 
 def _load_edgelist(path: pathlib.Path | str) -> dgl.DGLGraph:
@@ -232,4 +231,6 @@ def _get_edge_embedding(emb, a, b):
 
 
 if __name__ == "__main__":
+    #wandb.init(mode="disabled")
+    #_do_run("triangle","powerlaw","clustered","clustered",1000,1000)
     main()

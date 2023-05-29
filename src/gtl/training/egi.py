@@ -161,7 +161,7 @@ def train_egi_encoder(
     if sampler == "egi":
         sampler = dgl.dataloading.NeighborSampler([10 for i in range(k)])
     elif sampler == "triangle":
-        sampler = KHopTriangleSampler([10 for i in range(k)])
+        sampler = KHopTriangleSampler(dgl_graph,[10 for i in range(k)])
 
     features = features.to(device)
     dgl_graph = dgl_graph.to(device)

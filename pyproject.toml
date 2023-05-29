@@ -4,11 +4,6 @@ version = "0.0.1"
 dependencies = []
 
 
-[tool.setuptools.packages.find]
-where = ["src"]  # ["."] by default
-include = ["*"]
-
-
 [tool.poetry]
 name = "graphtransferlearning"
 version = "0.0.1"
@@ -18,6 +13,14 @@ readme = "README.md"
 packages = [
     { include = "gtl", from = "src" },
 ]
+
+
+[tool.poetry.build]
+#https://github.com/python-poetry/poetry/issues/2740#issuecomment-1447617294
+#https://github.com/python-poetry/poetry/issues/7470
+#https://github.com/python-poetry/poetry-core/pull/318
+script="build.py"
+generate-setup-file = true 
 
 
 [tool.poetry.dependencies]
@@ -43,5 +46,5 @@ agraph = "^0.0.3"
 
 
 [build-system]
-requires = ["poetry-core"]
+requires = ["poetry-core","torch"]
 build-backend = "poetry.core.masonry.api"
