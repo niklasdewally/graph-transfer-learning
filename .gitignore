@@ -1,6 +1,8 @@
+
 # R
 *.Rproj
 .Rhistory
+report_files/
 # Images
 *.png
 

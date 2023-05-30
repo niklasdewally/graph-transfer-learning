@@ -1,0 +1,48 @@
+---
+title: "Airport Experiment Results"
+author: "Niklas Dewally"
+execute:
+  warning: false
+params:
+  filename: "data.csv"
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include=FALSE}
+library(readr)
+library(dplyr)
+library(knitr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+```
+
+```{r include=FALSE}
+data <- read_csv(params$filename)
+```
+
+```{r echo=FALSE,message=FALSE}
+grouped <- data %>% group_by(model,`k-hops`) %>% 
+  summarise(`source-classifier-accuracy` = mean(`source-classifier-accuracy`),
+            `target-classifier-accuracy` = mean(`target-classifier-accuracy`))
+knitr::kable(grouped)
+```
+
+```{r echo =FALSE, message=FALSE}
+library(dplyr)
+data <- data %>% 
+  pivot_longer(cols=c(`source-classifier-accuracy`,`target-classifier-accuracy`),names_to="srctarget",values_to="accuracy") %>%
+  unite(`k-hops`,`model`,col=`label`,sep=" ",remove=FALSE)
+```
+
+```{r echo = FALSE, message=FALSE}
+ggplot(data,aes(x=`label`,y=`accuracy`,colour=`model`)) + 
+  geom_boxplot() + 
+  facet_wrap("~ srctarget") + 
+  theme(axis.text.x=element_text(angle=90,hjust=1))
+```
+
