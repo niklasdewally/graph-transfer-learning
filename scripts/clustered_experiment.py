@@ -2,7 +2,8 @@ import datetime
 import itertools
 import pathlib
 import sys
-from random import shuffle, randint, sample
+from argparse import ArgumentParser
+from random import randint, sample, shuffle
 
 import dgl
 import gtl.features
@@ -12,12 +13,12 @@ import numpy as np
 import torch
 import torch.nn as nn
 import wandb
+from dgl.sampling import global_uniform_negative_sampling
+from gtl.cli import add_wandb_options
+from gtl.clustered import get_filename
+from IPython import embed
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import train_test_split
-from dgl.sampling import global_uniform_negative_sampling
-from gtl.clustered import get_filename
-
-from IPython import embed
 
 SCRIPT_DIR = pathlib.Path(__file__).parent.resolve()
 PROJECT_DIR = SCRIPT_DIR.parent.resolve()
@@ -25,24 +26,26 @@ DATA_DIR = PROJECT_DIR / "data" / "generated" / "clustered"
 
 
 # Experimental constants
-BATCHSIZE = 50
-LR = 0.01
-HIDDEN_LAYERS = 32
-PATIENCE = 10
-MIN_DELTA = 0.01
-EPOCHS = 100
-K = 3
-N_RUNS = 3
+CONFIG = {
+    "batch_size": 50,
+    "LR": 0.01,
+    "hidden_layers": 32,
+    "patience": 10,
+    "min_delta": 0.01,
+    "epochs": 100,
+    "k": {"triangle": 4, "egi": 3},
+    "n_runs": 20,
+}
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Parameters to sweep
 GRAPH_TYPES = ["powerlaw"]
-MODELS = ["triangle","egi"]
+MODELS = ["triangle", "egi"]
 
 # (soruce graph size, target graph size)
 # for fewshot learning (train on small, test on large)
-SIZES = [(100, 1000), (100, 100),(1000,1000)]
+SIZES = [(100, 1000), (100, 100), (1000, 1000)]
 
 
 def _load_edgelist(path: pathlib.Path | str) -> dgl.DGLGraph:
@@ -61,7 +64,7 @@ def _load_edgelist(path: pathlib.Path | str) -> dgl.DGLGraph:
 # DATASETS
 
 
-def main() -> None:
+def main(opts) -> None:
     # parameter sweep
     trials = list(itertools.product(MODELS, GRAPH_TYPES, SIZES))
     shuffle(trials)
@@ -76,8 +79,9 @@ def main() -> None:
             src_name = "clustered" if src else "unclustered"
             target_name = "clustered" if target else "unclustered"
 
-            for i in range(N_RUNS):
+            for i in range(CONFIG["n_runs"]):
                 wandb.init(
+                    mode=opts.mode,
                     project="Clustered Transfer",
                     name=f"{model}-{graph_type}-{src_name}-{src_size}-{target_name}-{target_size}-{i}",
                     entity="sta-graph-transfer-learning",
@@ -89,6 +93,7 @@ def main() -> None:
                         "target": target_name,
                         "src-size": src_size,
                         "target-size": target_size,
+                        "global_config": CONFIG,
                     },
                 )
 
@@ -97,7 +102,7 @@ def main() -> None:
                 except Exception as e:
                     # report run as failed
                     wandb.finish(exit_code=1)
-                    i-= 1
+                    i -= 1
                 wandb.finish()
 
 
@@ -113,17 +118,19 @@ def _do_run(
 
     encoder: nn.Module = gtl.training.train_egi_encoder(
         src_g,
-        k=K,
-        lr=LR,
-        n_hidden_layers=HIDDEN_LAYERS,
+        k=CONFIG["k"][model],
+        lr=CONFIG["LR"],
+        n_hidden_layers=CONFIG["hidden_layers"],
         sampler=model,
         save_weights_to="pretrain.pt",
-        patience=PATIENCE,
-        min_delta=MIN_DELTA,
-        n_epochs=EPOCHS,
+        patience=CONFIG["patience"],
+        min_delta=CONFIG["min_delta"],
+        n_epochs=CONFIG["epochs"],
     )
 
-    features: torch.Tensor = gtl.features.degree_bucketing(src_g, HIDDEN_LAYERS)
+    features: torch.Tensor = gtl.features.degree_bucketing(
+        src_g, CONFIG["hidden_layers"]
+    )
     features = features.to(device)
 
     embs = encoder(src_g, features)
@@ -179,7 +186,7 @@ def _do_run(
     # Direct transfer of embeddings #
     #################################
 
-    features = gtl.features.degree_bucketing(target_g, HIDDEN_LAYERS)
+    features = gtl.features.degree_bucketing(target_g, CONFIG["hidden_layers"])
     features = features.to(device)
 
     embs = encoder(target_g, features)
@@ -236,6 +243,8 @@ def _get_edge_embedding(emb, a, b):
 
 
 if __name__ == "__main__":
-    #wandb.init(mode="disabled")
-    #_do_run("triangle","powerlaw","clustered","clustered",1000,1000)
-    main()
+    parser = add_wandb_options(ArgumentParser())
+    opts = parser.parse_args()
+    if opts.mode == None:
+        opts.mode = "online"
+    main(opts)

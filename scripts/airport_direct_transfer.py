@@ -49,14 +49,15 @@ DATA_DIR = PROJECT_DIR / "data" / "airports"
 TMP_DIR = tempfile.TemporaryDirectory()
 
 # some experimental constants
-
-BATCHSIZE = 50
-LR = 0.01
-HIDDEN_LAYERS = 32
-PATIENCE = 10
-MIN_DELTA = 0.01
-EPOCHS = 100
-N_RUNS = 10
+CONFIG = {
+    "batch_size": 50,
+    "LR": 0.01,
+    "hidden_layers": 32,
+    "patience": 10,
+    "min_delta": 0.01,
+    "epochs": 100,
+    "n_runs": 10,
+}
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -72,7 +73,7 @@ def main(opts):
     current_date_time = datetime.datetime.now().strftime("%Y%m%dT%H%M")
 
     for model, k in trials:
-        for i in range(N_RUNS):
+        for i in range(CONFIG["n_runs"]):
             project = "03 Airport Direct Transfer"
             name = f"{model}-k{k}-{i}"
             entity = "sta-graph-transfer-learning"
@@ -80,12 +81,6 @@ def main(opts):
             config = {
                 "model": model,
                 "k-hops": k,
-                "encoder-hidden-layers": HIDDEN_LAYERS,
-                "encoder-epochs": EPOCHS,
-                "encoder-patience": PATIENCE,
-                "encoder-min-delta": MIN_DELTA,
-                "encoder-lr": LR,
-                "encoder-batchsize": BATCHSIZE,
             }
 
             with wandb.init(
@@ -96,6 +91,8 @@ def main(opts):
                 group=group,
                 mode=opts.mode,
             ) as run:
+                # add global config
+                wandb.config.update({"global_config": CONFIG})
                 do_run(k, model)
 
 
@@ -133,8 +130,8 @@ def do_run(k, sampler):
     )
 
     # node features for encoder
-    europe_node_feats = degree_bucketing(europe_g, HIDDEN_LAYERS).to(device)
-    brazil_node_feats = degree_bucketing(brazil_g, HIDDEN_LAYERS).to(device)
+    europe_node_feats = degree_bucketing(europe_g, CONFIG["hidden_layers"]).to(device)
+    brazil_node_feats = degree_bucketing(brazil_g, CONFIG["hidden_layers"]).to(device)
 
     # save graph structural properties to wanb for analysis
     gtl.wandb.log_network_properties(
@@ -152,13 +149,13 @@ def do_run(k, sampler):
 
     encoder = gtl.training.train_egi_encoder(
         europe_g,
-        n_epochs=EPOCHS,
+        n_epochs=CONFIG["epochs"],
         k=k,
-        lr=LR,
-        n_hidden_layers=HIDDEN_LAYERS,
-        batch_size=BATCHSIZE,
-        patience=PATIENCE,
-        min_delta=MIN_DELTA,
+        lr=CONFIG["LR"],
+        n_hidden_layers=CONFIG["hidden_layers"],
+        batch_size=CONFIG["batch_size"],
+        patience=CONFIG["patience"],
+        min_delta=CONFIG["min_delta"],
         sampler=sampler,
         save_weights_to=Path(TMP_DIR.name, "srcmodel.pt"),
     )
@@ -182,9 +179,9 @@ def do_run(k, sampler):
 
     target_model = gtl.models.EGI(
         brazil_node_feats.shape[1],
-        HIDDEN_LAYERS,
+        CONFIG["hidden_layers"],
         2,  # see gtl.training.egi
-        nn.PReLU(HIDDEN_LAYERS),
+        nn.PReLU(CONFIG["hidden_layers"]),
     ).to(device)
 
     target_model.load_state_dict(

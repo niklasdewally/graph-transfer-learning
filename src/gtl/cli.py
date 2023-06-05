@@ -10,7 +10,7 @@ Includes:
 from argparse import ArgumentParser
 
 
- def add_wandb_options(parser: ArgumentParser) -> ArgumentParser:
+def add_wandb_options(parser: ArgumentParser) -> ArgumentParser:
     """
     Add flags to the given parser for controlling runs with wandb.
 
