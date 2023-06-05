@@ -40,7 +40,7 @@ data <- data %>%
 ```
 
 ```{r echo = FALSE, message=FALSE}
-ggplot(data,aes(x=`label`,y=`accuracy`,colour=`model`)) + 
+ggplot(data,aes(x=`accuracy`,y=`label`,colour=`model`)) + 
   geom_boxplot() + 
   facet_wrap("~ srctarget") + 
   theme(axis.text.x=element_text(angle=90,hjust=1))

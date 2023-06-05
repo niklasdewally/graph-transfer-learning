@@ -1,0 +1,104 @@
+---
+title: "Clustering Results"
+author: "Niklas Dewally"
+execute:
+  warning: false
+params:
+  filename: "data.csv"
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include=FALSE}
+library(readr)
+library(dplyr)
+library(knitr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+```
+
+```{r include=FALSE}
+data <- read_csv(params$filename)
+data %>% filter(`graph_type` == "powerlaw")
+```
+
+```{r echo=FALSE, message=FALSE}
+# tidy graph data for graphing
+df <- data %>%
+  pivot_longer(cols=c(`source-accuracy`,`target-accuracy`),
+               names_to="srctarget",values_to="accuracy") %>%
+
+  mutate(`srctarget`=str_replace(`srctarget`,"source-accuracy","source")) %>%
+  mutate(`srctarget`=str_replace(`srctarget`,"target-accuracy","target")) %>%    
+  unite(`srctarget`,`model`,col=`label`,sep=" ",remove=FALSE)
+```
+
+```{r echo = FALSE, message=FALSE}
+
+boxPlot <- function(df,title="") {
+  p <- ggplot(df ,aes(x=`accuracy`,y=`label`,colour=`model`)) + 
+       geom_boxplot() + 
+       facet_grid(c("src","target")) +
+       ggtitle(title)
+
+  return(p)
+}
+```
+
+```{r include=FALSE}
+# generate summaries
+summary_df <- data %>% 
+  group_by(src,target,`src-size`,`target-size`,model) %>%
+  summarise(`Source Accuracy (Mean)` = mean(`source-accuracy`),
+            `Source Accuracy (SD)` = sd(`source-accuracy`),
+            `Source Accuracy (N)` = n_distinct(`source-accuracy`),
+            `Target Accuracy (Mean)` = mean(`target-accuracy`),
+            `Target Accuracy (SD)` = sd(`target-accuracy`),
+            `Target Accuracy (N)` = n_distinct(`target-accuracy`))
+```
+
+## Small Graphs: $100 \rightarrow 100$
+
+```{r echo=FALSE, message=FALSE} 
+knitr::kable(filter(summary_df,`src-size`== 100, `target-size` == 100) %>% ungroup() %>% select(-`src-size`,-`target-size`))
+```
+
+```{r echo=FALSE}
+boxPlot(filter(df,`srctarget` == "source",`src-size`==100,`target-size`==100),title="Source accuracy")
+```
+
+```{r echo=FALSE}
+boxPlot(filter(df,`srctarget` == "target",`src-size`==100,`target-size`==100),title="Target accuracy")
+```
+
+## Large Graphs: $1000 \rightarrow 1000$
+
+```{r echo=FALSE, message=FALSE} 
+knitr::kable(filter(summary_df,`src-size`== 1000, `target-size` == 1000)%>% ungroup() %>% select(-`src-size`,-`target-size`))
+```
+
+```{r echo=FALSE}
+boxPlot(filter(df,`srctarget` == "source",`src-size`==1000,`target-size`==1000),title="Source accuracy")
+```
+
+```{r echo=FALSE}
+boxPlot(filter(df,`srctarget` == "target",`src-size`==1000,`target-size`==1000),title="Target accuracy")
+```
+
+## Few-shot Learning: $100 \rightarrow 1000$
+
+```{r echo=FALSE, message=FALSE} 
+knitr::kable(filter(summary_df,`src-size`== 100, `target-size` == 1000)%>% ungroup() %>% select(-`src-size`,-`target-size`))
+```
+
+```{r echo=FALSE}
+boxPlot(filter(df,`srctarget` == "source",`src-size`==100,`target-size`==1000),title="Source accuracy")
+```
+
+```{r echo=FALSE}
+boxPlot(filter(df,`srctarget` == "target",`src-size`==100,`target-size`==1000),title="Target accuracy")
+```
