@@ -1,13 +1,15 @@
 __all__ = ["train_egi_encoder"]
 
+import tempfile
+from pathlib import Path
+from warnings import warn
+
 import dgl
 import torch
 import torch.nn as nn
 import wandb
-
 from dgl.dataloading import DataLoader
 from tqdm import tqdm
-from warnings import warn
 
 from ..features import degree_bucketing
 from ..models import EGI
@@ -94,7 +96,7 @@ def train_egi_encoder(
 
         min_delta:
 
-        wandb_enabled: Whether the training function is being called within a 
+        wandb_enabled: Whether the training function is being called within a
             wandb run. If enabled, this will log loss metrics to wandb.
 
             Defaults to True.
@@ -112,16 +114,16 @@ def train_egi_encoder(
 
     References:
 
-        [1] Q. Zhu, C. Yang, Y. Xu, H. Wang, C. Zhang, and J. Han, 
-        ‘Transfer Learning of Graph Neural Networks with Ego-graph Information 
-         Maximization’. 
+        [1] Q. Zhu, C. Yang, Y. Xu, H. Wang, C. Zhang, and J. Han,
+        ‘Transfer Learning of Graph Neural Networks with Ego-graph Information
+         Maximization’.
          arXiv, 2020. doi: 10.48550/ARXIV.2009.05204.
 
     """
 
     if gpu != -1:
         warn(
-            "Manually specifying a gpu number is deprecated."\
+            "Manually specifying a gpu number is deprecated."
             "This is determined automatically by the training function.",
             DeprecationWarning,
         )
@@ -154,6 +156,10 @@ def train_egi_encoder(
     if lr <= 0:
         raise ValueError("Learning rate must be above 0.")
 
+    # setup temporary directory for saving models for early-stopping
+    temporary_directory = tempfile.TemporaryDirectory()
+    early_stopping_filepath = Path(temporary_directory.name, "stopping.pt")
+
     # generate features
 
     features = degree_bucketing(dgl_graph, n_hidden_layers)
@@ -161,7 +167,7 @@ def train_egi_encoder(
     if sampler == "egi":
         sampler = dgl.dataloading.NeighborSampler([10 for i in range(k)])
     elif sampler == "triangle":
-        sampler = KHopTriangleSampler(dgl_graph,[10 for i in range(k)])
+        sampler = KHopTriangleSampler(dgl_graph, [10 for i in range(k)])
 
     features = features.to(device)
     dgl_graph = dgl_graph.to(device)
@@ -242,14 +248,16 @@ def train_egi_encoder(
             best = loss
             best_epoch = epoch
             # save current weights
-            torch.save(model.state_dict(), "stopping.pt")
+            torch.save(model.state_dict(), early_stopping_filepath)
 
         if epoch - best_epoch > patience:
             print("Early stopping!")
-            model.load_state_dict(torch.load("stopping.pt"))
+            model.load_state_dict(torch.load(early_stopping_filepath))
 
             if wandb_enabled:
-                wandb.summary[f"{wandb_summary_prefix}-early-stopping-epoch"] = best_epoch
+                wandb.summary[
+                    f"{wandb_summary_prefix}-early-stopping-epoch"
+                ] = best_epoch
 
             break
 
@@ -261,5 +269,8 @@ def train_egi_encoder(
 
     model.eval()
     model.encoder.eval()
+
+    # Cleanup
+    temporary_directory.cleanup()
 
     return model.encoder

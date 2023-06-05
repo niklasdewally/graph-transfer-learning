@@ -20,9 +20,10 @@ https://proceedings.neurips.cc/paper/2021/hash/0dd6049f5fa537d41753be6d37859430-
 import datetime
 import itertools
 import pathlib
-from random import shuffle
+import tempfile
 from argparse import ArgumentParser
-from gtl.argparse import add_wandb_options
+from pathlib import Path
+from random import shuffle
 
 import dgl
 import gtl
@@ -33,15 +34,19 @@ import numpy as np
 import torch
 import torch.nn as nn
 import wandb
+from gtl.argparse import add_wandb_options
 from gtl.features import degree_bucketing
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import train_test_split
-from torch.profiler import profile, record_function, ProfilerActivity
+from torch.profiler import ProfilerActivity, profile, record_function
 
 # setup directorys to use for airport data
 SCRIPT_DIR = pathlib.Path(__file__).parent.resolve()
 PROJECT_DIR = SCRIPT_DIR.parent.resolve()
 DATA_DIR = PROJECT_DIR / "data" / "airports"
+
+# directory to store temporary model weights used while training
+TMP_DIR = tempfile.TemporaryDirectory()
 
 # some experimental constants
 
@@ -58,9 +63,6 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def main(opts):
-
-
-
     models = ["egi", "triangle"]
     ks = [1, 2, 3, 4]
 
@@ -74,7 +76,7 @@ def main(opts):
             project = "03 Airport Direct Transfer"
             name = f"{model}-k{k}-{i}"
             entity = "sta-graph-transfer-learning"
-            group = f"Run: {current_date_time}"
+            group = f"{current_date_time}"
             config = {
                 "model": model,
                 "k-hops": k,
@@ -87,9 +89,12 @@ def main(opts):
             }
 
             with wandb.init(
-                project=project, name=name, entity=entity, config=config,
-                group=group, mode=opts.mode
-
+                project=project,
+                name=name,
+                entity=entity,
+                config=config,
+                group=group,
+                mode=opts.mode,
             ) as run:
                 do_run(k, model)
 
@@ -155,7 +160,7 @@ def do_run(k, sampler):
         patience=PATIENCE,
         min_delta=MIN_DELTA,
         sampler=sampler,
-        save_weights_to="srcmodel.pt",
+        save_weights_to=Path(TMP_DIR.name, "srcmodel.pt"),
     )
 
     embs = encoder(europe_g, europe_node_feats).to(torch.device("cpu")).detach().numpy()
@@ -182,7 +187,9 @@ def do_run(k, sampler):
         nn.PReLU(HIDDEN_LAYERS),
     ).to(device)
 
-    target_model.load_state_dict(torch.load("srcmodel.pt"), strict=False)
+    target_model.load_state_dict(
+        torch.load(Path(TMP_DIR.name, "srcmodel.pt")), strict=False
+    )
 
     target_encoder = target_model.encoder
 
@@ -225,3 +232,5 @@ if __name__ == "__main__":
         opts.mode = "online"
     main(opts)
 
+
+TMP_DIR.cleanup()
