@@ -34,7 +34,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import wandb
-from gtl.argparse import add_wandb_options
+from gtl.cli import add_wandb_options
 from gtl.features import degree_bucketing
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import train_test_split
