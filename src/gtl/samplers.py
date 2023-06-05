@@ -1,6 +1,5 @@
 import dgl
 import torch
-
 from dgl.dataloading import Sampler
 from IPython import embed
 
@@ -45,7 +44,7 @@ class KHopTriangleSampler(Sampler):
                 neighbor = triads[i][0]
                 neighbor2 = triads[i][1]
                 if torch.all(self.g.has_edges_between([neighbor],[neighbor2])):
-                    newedges = self.g.edge_ids([nid,nid,neighbor],[neighbor,neighbor2,neighbor2],return_uv=False).to(self.g.device)
+                    newedges = self.g.edge_ids([nid,nid],[neighbor,neighbor2],return_uv=False).to(self.g.device)
                     edges = torch.cat((edges,newedges)).to(self.g.device)
 
             return edges
@@ -79,6 +78,8 @@ class KHopTriangleSampler(Sampler):
             nid = nid.item()
             new_edges = self.triangles[nid]
             random_mask = torch.randperm(new_edges.shape[0])
+            # shuffle edges, then take either 10 triangles, or how ever many edges there are in the graph (if this is less)
+            # (note that each triangle has three edges in edges)
             sampled_edges = new_edges[random_mask][:min(fanout*2,new_edges.shape[0])]
             edges = torch.cat([edges,sampled_edges])
 

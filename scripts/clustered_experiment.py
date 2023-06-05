@@ -72,7 +72,7 @@ def main() -> None:
         # sizes of training graphs
         src_size, target_size = sizes
 
-        for src, target in itertools.permutations([True, False], r=2):
+        for src, target in itertools.product([True, False], repeat=2):
             src_name = "clustered" if src else "unclustered"
             target_name = "clustered" if target else "unclustered"
 
@@ -92,7 +92,12 @@ def main() -> None:
                     },
                 )
 
-                _do_run(model, graph_type, src, target, src_size, target_size)
+                try:
+                    _do_run(model, graph_type, src, target, src_size, target_size)
+                except Exception as e:
+                    # report run as failed
+                    wandb.finish(exit_code=1)
+                    i-= 1
                 wandb.finish()
 
 
