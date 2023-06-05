@@ -21,6 +21,8 @@ import datetime
 import itertools
 import pathlib
 from random import shuffle
+from argparse import ArgumentParser
+from gtl.argparse import add_wandb_options
 
 import dgl
 import gtl
@@ -55,7 +57,10 @@ N_RUNS = 10
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def main():
+def main(opts):
+
+
+
     models = ["egi", "triangle"]
     ks = [1, 2, 3, 4]
 
@@ -82,7 +87,9 @@ def main():
             }
 
             with wandb.init(
-                project=project, name=name, entity=entity, config=config, group=group
+                project=project, name=name, entity=entity, config=config,
+                group=group, mode=opts.mode
+
             ) as run:
                 do_run(k, model)
 
@@ -212,5 +219,9 @@ def do_run(k, sampler):
 
 
 if __name__ == "__main__":
-    main()
+    parser = add_wandb_options(ArgumentParser())
+    opts = parser.parse_args()
+    if opts.mode == None:
+        opts.mode = "online"
+    main(opts)
 
