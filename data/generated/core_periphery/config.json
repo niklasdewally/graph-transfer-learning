@@ -1,0 +1,21 @@
+{
+    "command-line-options": {
+        "overwrite": null,
+        "dry_run": false,
+        "verbose": false
+    },
+    "generation-parameters": {
+        "n": 10,
+        "m": 2,
+        "core_sizes": [
+            200,
+            50
+        ],
+        "periphery_sizes": [
+            1000,
+            250
+        ],
+        "target_core_clustering": 0.8,
+        "target_periphery_clustering": 0.1
+    }
+}

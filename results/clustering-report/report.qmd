@@ -53,12 +53,12 @@ boxPlot <- function(df,title="") {
 # generate summaries
 summary_df <- data %>% 
   group_by(src,target,`src-size`,`target-size`,model) %>%
-  summarise(`Source Accuracy (Mean)` = mean(`source-accuracy`),
-            `Source Accuracy (SD)` = sd(`source-accuracy`),
-            `Source Accuracy (N)` = n_distinct(`source-accuracy`),
-            `Target Accuracy (Mean)` = mean(`target-accuracy`),
-            `Target Accuracy (SD)` = sd(`target-accuracy`),
-            `Target Accuracy (N)` = n_distinct(`target-accuracy`))
+  summarise(`Source Accuracy (Mean)` = mean(`source-accuracy`,na.rm=TRUE),
+            `Source Accuracy (SD)` = sd(`source-accuracy`,na.rm=TRUE),
+            #`Source Accuracy (N)` = nows(`source-accuracy`),
+            `Target Accuracy (Mean)` = mean(`target-accuracy`,na.rm=TRUE),
+            `Target Accuracy (SD)` = sd(`target-accuracy`,na.rm=TRUE),)
+            #`Target Accuracy (N)` = nrows(`target-accuracy`,))
 ```
 
 ## Small Graphs: $100 \rightarrow 100$
