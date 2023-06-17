@@ -4,9 +4,7 @@
 """
 Generate core periphery graphs.
 
-The core and periphery are both generated as powerlaw graphs, using preferential
-attachment. The triangle count is altered such that the core has a higher
-triangle clustering than the periphery.
+TODO
 
 """
 
@@ -14,69 +12,84 @@ import argparse
 import json
 import pathlib
 import sys
+import typing
 from collections.abc import Iterator
+from pathlib import Path
 
 import networkx as nx
+from gcmpy import NetworkNames
+from gtl.cli import standard_generator_parser
+from gtl.gcmpy.poisson import generator as poisson_generator
 from gtl.two_part import join_core_periphery, two_part_graph_generator
 from tqdm import tqdm
 
-# Setup directories
-SCRIPT_DIR = pathlib.Path(__file__).parent.resolve()
-PROJECT_DIR = SCRIPT_DIR.parent.resolve()
-DATA_DIR = PROJECT_DIR / "data" / "generated" / "core_periphery"
-DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-
-# Parameters for generation
-PARAMS = { "n": 10,
-    "core_m": 2,
-    "periphery_m": 1,
-    "periphery_sizes": [200,50],
-    "core_sizes": [1000,250],
-    "target_core_clustering": 0.8,
-    "target_periphery_clustering": 0.01,
+# Default config for generation
+# to be later overwritten by command arguments
+config = {
+    "sizes": [(75, 500), (15, 100),(750,5000)],
+    "number_of_repeats": 5,
+    "core_mean_degree": 9,
+    "core_mean_triangles": 35,
+    "periphery_mean_degree": 3,
+    "periphery_mean_triangles": 1,
 }
 
 
 def main() -> int:
-    options = _parse_args()
+    args = _parse_args()
+    config.update(args)
 
-    if not _is_dir_empty(DATA_DIR):
-        match vars(options):
-            case {"overwrite": True}:
-                # empty dir in preparation for data generation
-                for f in DATA_DIR.iterdir():
-                    if f.is_file():
-                        f.unlink()
+    _confirm_overwrite(config)
+    _generate_graphs(config)
 
-            case {"overwrite": False}:
-                return 1
-
-            case _:
-                # no overwrite preference
-                if _confirm_choice("The data directory is not empty. Overwrite?"):
-                    # empty dir in preparation for data generation
-                    for f in DATA_DIR.iterdir():
-                        if f.is_file():
-                            f.unlink()
-                else:
-                    return 0
-
-    for i in range(len(PARAMS["core_sizes"])):
-        _generate_graphs(
-            PARAMS["n"], PARAMS["core_sizes"][i], PARAMS["periphery_sizes"][i], options.dry_run
-        )
-    _write_params_to_file(vars(options), PARAMS)
+    with open(config["data_dir"] / "config.json", "w") as f:
+        json.dump(config, f, ensure_ascii=False, indent=4, default=str)
 
     return 0
 
 
-def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--overwrite", action=argparse.BooleanOptionalAction)
-    parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--verbose", action="store_true")
-    return parser.parse_args()
+def _parse_args() -> dict:
+    parser = argparse.ArgumentParser(
+        description=__doc__, parents=[standard_generator_parser()]
+    )
+
+    parser.add_argument("data_dir", help="the directory to save generated graphs to.")
+    args = parser.parse_args()
+    data_dir = Path(args.data_dir)
+
+    if not data_dir.exists():
+        data_dir.mkdir(parents=True, exist_ok=True)
+
+    args: dict = vars(args)
+    args.update({"data_dir": data_dir})
+
+    return args
+
+
+def _confirm_overwrite(config: dict) -> None | typing.NoReturn:
+    # if overwrite is set to be true, do not ask
+    # if overwrite is set to be false, quit
+    # if overwrite unspecified, ask the user
+
+    if _is_dir_empty(config["data_dir"]):
+        return
+
+    if config["overwrite"] is True:
+        _empty_directory_for_overwrite(config["data_dir"])
+        return
+
+    if _confirm_choice("The data directory is not empty. Overwrite?"):
+        _empty_data_directory(config["data_dir"])
+        return
+
+    print("Error: data directory is not empty.")
+    sys.exit(1)
+
+
+def _empty_data_directory(data_dir):
+    for f in data_dir.iterdir():
+        if f.is_file():
+            f.unlink()
 
 
 def _confirm_choice(msg):
@@ -91,48 +104,56 @@ def _is_dir_empty(path):
     return next(path.iterdir(), None) is None
 
 
-def _generate_graphs(n: int, core_size: int, periphery_size: int, dry_run: int):
-    cores = _generator(core_size, PARAMS["m"], PARAMS["target_core_clustering"])
-    peripherys = _generator(
-        periphery_size, PARAMS["m"], PARAMS["target_periphery_clustering"]
+def _generate_graphs(config: dict):
+    for core_size, periphery_size in config["sizes"]:
+        cores = _core_generator(core_size, config)
+        peripherys = _periphery_generator(periphery_size, config)
+
+        output_graphs = two_part_graph_generator(cores, peripherys, join_core_periphery)
+
+        print(
+            f"Generating {config['number_of_repeats']} core-periphery graphs with core size {core_size} "
+            f"and periphery size {periphery_size}"
+        )
+
+        for i in tqdm(range(config["number_of_repeats"])):
+            filename = f"{core_size}-{periphery_size}-{i}.gml"
+            g = next(output_graphs)
+
+            if config["dry_run"]:
+                print(f"{config['data_dir'] / filename}")
+            else:
+                _delete_gcmpy_metadata(g)
+                nx.write_gml(g, config["data_dir"] / filename)
+
+
+def _core_generator(core_size: int, config: dict) -> Iterator[nx.Graph]:
+    return poisson_generator(
+        config["core_mean_degree"], 
+        config["core_mean_triangles"],
+        core_size, 
     )
 
-    output_graphs = two_part_graph_generator(cores, peripherys, join_core_periphery)
 
-    print(
-        f"Generating {n} core-periphery graphs with core size {core_size} "
-        f"and periphery size {periphery_size}"
+def _periphery_generator(periphery_size: int, config: dict) -> Iterator[nx.Graph]:
+    return poisson_generator(
+        config["periphery_mean_degree"],
+        config["periphery_mean_triangles"],
+        periphery_size,
     )
-    for i in tqdm(range(n)):
-        filename = f"core-periphery-{core_size}-{periphery_size}-{i}.gml"
-        g = next(output_graphs)
-
-        if dry_run:
-            print(f"{DATA_DIR / filename}")
-        else:
-         nx.write_gml(g, DATA_DIR / filename)
 
 
-def _generator(size: int, m: int, target_clustering: int) -> Iterator[nx.Graph]:
-    # TODO
-    # Vary mean degree
-    # 500 nodes periphery, mean degree 3
-    # 75 nodes core, mean degree 10
-    # Target: 5000,750 (x10)
-    raise NotImplementedError()
-    return gtl.gcmpy.poisson.generator(NotImplemented,NotImplemented,size)
-    #while True:
-    #    yield nx.powerlaw_cluster_graph(size, m, target_clustering)
+def _delete_gcmpy_metadata(g: nx.Graph) -> None:
+    # nx.write_gml doesnt know what to do for non string attribute keys
 
+    for n in g:
+        del g.nodes()[n][NetworkNames.JOINT_DEGREE]
 
-def _write_params_to_file(options: dict, params: dict) -> None:
-    """
-    Write generation parameters to a json file.
-    """
-    output_dict = {"command-line-options": options, "generation-parameters": params}
-
-    with open(DATA_DIR / "config.json", "w") as f:
-        json.dump(output_dict, f, ensure_ascii=False, indent=4)
+    for u, v in g.edges:
+        if NetworkNames.TOPOLOGY in g.edges[u, v]:
+            del g.edges[u, v][NetworkNames.TOPOLOGY]
+        if NetworkNames.MOTIF_IDS in g.edges[u, v]:
+            del g.edges[u, v][NetworkNames.MOTIF_IDS]
 
 
 if __name__ == "__main__":

@@ -8,6 +8,19 @@ Includes:
 """
 
 from argparse import ArgumentParser
+import argparse
+
+
+def standard_generator_parser() -> ArgumentParser:
+    """
+    Return a parser that contains the --overwrite, --dry-run, and --verbose
+    flags for use in generator scripts.
+    """
+    parser = ArgumentParser(add_help=False)
+    parser.add_argument("--overwrite", action=argparse.BooleanOptionalAction)
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--verbose", action="store_true")
+    return parser
 
 
 def add_wandb_options(parser: ArgumentParser) -> ArgumentParser:
@@ -45,6 +58,7 @@ def add_wandb_options(parser: ArgumentParser) -> ArgumentParser:
 
     return parser
 
+
 def print_title(text: str) -> None:
     """
     Print a title.
@@ -55,5 +69,3 @@ def print_title(text: str) -> None:
     """
 
     print(f"{text}\n{''.join(['=' for _ in text])}")
-
-

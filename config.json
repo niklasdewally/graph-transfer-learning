@@ -7,10 +7,6 @@
         [
             15,
             100
-        ],
-        [
-            750,
-            5000
         ]
     ],
     "number_of_repeats": 5,
@@ -19,7 +15,7 @@
     "periphery_mean_degree": 3,
     "periphery_mean_triangles": 1,
     "overwrite": null,
-    "dry_run": false,
+    "dry_run": true,
     "verbose": false,
-    "data_dir": "data/generated/core_periphery"
+    "data_dir": "."
 }
