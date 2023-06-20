@@ -358,7 +358,7 @@ category = "main"
 optional = false
 python-versions = "*"
 files = [
-    {file = "dgl-1.1.0-cp310-cp310-macosx_10_10_x86_64.whl", hash = "sha256:1679482bd99b8f81296de854af69f2cde616aa60eb685f8173a52f5195ab7fd1"},
+    {file = "dgl-1.1.0-cp311-cp311-macosx_10_10_x86_64.whl", hash = "sha256:0cbb7d0e3461c85868ef5ab81a4890207f1f4ac65c4def25c346b445dee4b00b"},
 ]
 
 [package.dependencies]
@@ -371,8 +371,7 @@ tqdm = "*"
 
 [package.source]
 type = "url"
-url = "https://data.dgl.ai/wheels/dgl-1.1.0-cp310-cp310-macosx_10_10_x86_64.whl"
-
+url = "https://data.dgl.ai/wheels/dgl-1.1.0-cp311-cp311-macosx_10_10_x86_64.whl"
 [[package]]
 name = "dgl"
 version = "1.1.0"
@@ -381,7 +380,7 @@ category = "main"
 optional = false
 python-versions = "*"
 files = [
-    {file = "dgl-1.1.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:01abb53cfb9e9879a74a3a406b4559ee456ec7d23abed2430fa91fa9505a4ec5"},
+    {file = "dgl-1.1.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:67085b8110f5dba93d34c19d02112dc20eb094bcd01ec5b9595b8cff9d1a36fa"},
 ]
 
 [package.dependencies]
@@ -394,8 +393,7 @@ tqdm = "*"
 
 [package.source]
 type = "url"
-url = "https://data.dgl.ai/wheels/dgl-1.1.0-cp310-cp310-macosx_11_0_arm64.whl"
-
+url = "https://data.dgl.ai/wheels/dgl-1.1.0-cp311-cp311-macosx_11_0_arm64.whl"
 [[package]]
 name = "dgl"
 version = "1.1.0+cu117"
@@ -404,7 +402,7 @@ category = "main"
 optional = false
 python-versions = "*"
 files = [
-    {file = "dgl-1.1.0%2Bcu117-cp310-cp310-manylinux1_x86_64.whl", hash = "sha256:63e1c97b2a2c417c2f7ac8e3e11278b299033aeacd0fc36733e2948e70560a15"},
+    {file = "dgl-1.1.0%2Bcu117-cp311-cp311-manylinux1_x86_64.whl", hash = "sha256:942e7494a7dd894a95207dc3229ccbfb8b9d5481fc8d6c75df4199e35591d471"},
 ]
 
 [package.dependencies]
@@ -417,8 +415,7 @@ tqdm = "*"
 
 [package.source]
 type = "url"
-url = "https://data.dgl.ai/wheels/cu117/dgl-1.1.0%2Bcu117-cp310-cp310-manylinux1_x86_64.whl"
-
+url = "https://data.dgl.ai/wheels/cu117/dgl-1.1.0%2Bcu117-cp311-cp311-manylinux1_x86_64.whl"
 [[package]]
 name = "docker-pycreds"
 version = "0.4.0"
@@ -1323,7 +1320,10 @@ files = [
 ]
 
 [package.dependencies]
-numpy = {version = ">=1.21.0", markers = "python_version >= \"3.10\""}
+numpy = [
+    {version = ">=1.21.0", markers = "python_version >= \"3.10\""},
+    {version = ">=1.23.2", markers = "python_version >= \"3.11\""},
+]
 python-dateutil = ">=2.8.2"
 pytz = ">=2020.1"
 tzdata = ">=2022.1"
@@ -2421,5 +2421,5 @@ files = [
 
 [metadata]
 lock-version = "2.0"
-python-versions = "3.10.*"
-content-hash = "8103a26b3b69fcbe80787a55c0cee8cbd0d0dc87ccd5db35aa7508114dd7ecc3"
+python-versions = "3.11.*"
+content-hash = "c8f3b412715e513b6f5bcacc0a0637c91f2362238fd8605135b205bca5b76266"
