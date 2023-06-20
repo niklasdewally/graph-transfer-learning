@@ -55,13 +55,13 @@ sweep_config = {
     "project": "Airport hyperparams sweep",
     "entity": "sta-graph-transfer-learning",
     "metric": {"goal": "maximize", "name": "avg_classification_accuracy"},
-    "method":"bayes",
-    "parameters":{
-        'batch_size': {'values': [16, 32, 64]},
-        'hidden_layers': {'min':16,'max':128},
-        'lr':{'min':0.0001,'max':0.1},
-        'k':{'min':1,'max':5}}
-
+    "method": "bayes",
+    "parameters": {
+        "batch_size": {"values": [16, 32, 64]},
+        "hidden_layers": {"min": 16, "max": 128},
+        "lr": {"min": 0.0001, "max": 0.1},
+        "k": {"min": 1, "max": 5},
+    },
 }
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -97,7 +97,6 @@ def train():
 
 
 def do_one_run():
-
     europe_g, europe_labels = load_dataset(
         f"{str(DATA_DIR)}/europe-airports.edgelist",
         f"{str(DATA_DIR)}/labels-europe-airports.txt",
@@ -144,7 +143,6 @@ def load_dataset(edgefile, labelfile):
     labels = np.loadtxt(labelfile, skiprows=1)
 
     return dgl_graph, labels[:, 1]
-
 
 
 if __name__ == "__main__":

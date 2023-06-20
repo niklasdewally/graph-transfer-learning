@@ -16,6 +16,7 @@ from IPython import embed
 import gtl.gcmpy.powerlaw
 import gtl.gcmpy.poisson
 from networkx.readwrite.gml import literal_stringizer
+
 # Setup directories
 SCRIPT_DIR = pathlib.Path(__file__).parent.resolve()
 PROJECT_DIR = SCRIPT_DIR.parent.resolve()
@@ -25,9 +26,9 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 # Parameters for generation
 PARAMS = {
     "n": 10,
-    "module_size": [50,100,1000],
-    "ba_m":2,
-    "poisson_p":0.4,
+    "module_size": [50, 100, 1000],
+    "ba_m": 2,
+    "poisson_p": 0.4,
 }
 
 
@@ -55,14 +56,14 @@ def main() -> int:
                 else:
                     return 0
 
-
     params = PARAMS.copy()
     params.update(vars(options))
 
     _generate_graphs(params)
-    _write_params_to_file(vars(options),params)
+    _write_params_to_file(vars(options), params)
 
-    return 0 
+    return 0
+
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -71,6 +72,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--verbose", action="store_true")
     return parser.parse_args()
 
+
 def _confirm_choice(msg):
     answer = input(f"{msg} [y/n] (default: n) ")
     if answer.lower() in ["y", "yes"]:
@@ -78,16 +80,17 @@ def _confirm_choice(msg):
     else:
         return False
 
+
 def _is_dir_empty(path):
     return next(path.iterdir(), None) is None
 
+
 def _generate_graphs(params):
-
     for module_size in params["module_size"]:
-        g1s = _ba_generator(module_size,params)
-        g2s = _poisson_generator(module_size,params)
+        g1s = _ba_generator(module_size, params)
+        g2s = _poisson_generator(module_size, params)
 
-        output_graphs = two_part_graph_generator(g1s,g2s,_joiner)
+        output_graphs = two_part_graph_generator(g1s, g2s, _joiner)
         for i in range(params["n"]):
             g1_type = "ba"
             g1_size = module_size
@@ -102,32 +105,36 @@ def _generate_graphs(params):
                 # delete unneeded metadata from gcmpy
                 for n in g:
                     del g.nodes()[n][NetworkNames.JOINT_DEGREE]
-                for u,v in g.edges:
-                    if NetworkNames.TOPOLOGY in g.edges[u,v]:
-                        del g.edges[u,v][NetworkNames.TOPOLOGY]
-                    if NetworkNames.MOTIF_IDS in g.edges[u,v]:
-                        del g.edges[u,v][NetworkNames.MOTIF_IDS]
+                for u, v in g.edges:
+                    if NetworkNames.TOPOLOGY in g.edges[u, v]:
+                        del g.edges[u, v][NetworkNames.TOPOLOGY]
+                    if NetworkNames.MOTIF_IDS in g.edges[u, v]:
+                        del g.edges[u, v][NetworkNames.MOTIF_IDS]
+
+                nx.write_gml(g, DATA_DIR / filename, stringizer=literal_stringizer)
 
 
-                nx.write_gml(g, DATA_DIR / filename,stringizer=literal_stringizer)
+def _ba_generator(size, params) -> Iterator[nx.Graph]:
+    return gtl.gcmpy.powerlaw.generator(4, 3, size)
 
 
+# while True:
+# yield nx.binomial_graph(size,params["poisson_p"])
 
-def _ba_generator(size,params) -> Iterator[nx.Graph]:
-        return gtl.gcmpy.powerlaw.generator(4,3,size)
-    #while True:
-        #yield nx.binomial_graph(size,params["poisson_p"])
 
-def _poisson_generator(size,params) -> Iterator[nx.Graph]: 
-        return gtl.gcmpy.poisson.generator(4,3,size)
-    #while True:
-    #    yield nx.barabasi_albert_graph(size,params["ba_m"])
+def _poisson_generator(size, params) -> Iterator[nx.Graph]:
+    return gtl.gcmpy.poisson.generator(4, 3, size)
+
+
+# while True:
+#    yield nx.barabasi_albert_graph(size,params["ba_m"])
+
 
 def _joiner(g1: nx.Graph, g2: nx.Graph) -> nx.Graph:
     # renumber nodes so that g1 contains nodes 0-n, and g2 contains nodes n-m
     g1 = nx.convert_node_labels_to_integers(g1)
-    g2 = nx.convert_node_labels_to_integers(g2,first_label=g1.number_of_nodes())
-    g = nx.compose(g1,g2)
+    g2 = nx.convert_node_labels_to_integers(g2, first_label=g1.number_of_nodes())
+    g = nx.compose(g1, g2)
 
     # join the two modules together with a given density
     density = 0.01
@@ -135,7 +142,7 @@ def _joiner(g1: nx.Graph, g2: nx.Graph) -> nx.Graph:
         for m in g2.nodes():
             if rng.random() <= density:
                 g.add_edge(n, m)
-    
+
     return g
 
 
@@ -147,6 +154,7 @@ def _write_params_to_file(options: dict, params: dict) -> None:
 
     with open(DATA_DIR / "config.json", "w") as f:
         json.dump(output_dict, f, ensure_ascii=False, indent=4)
+
 
 if __name__ == "__main__":
     sys.exit(main())

@@ -63,10 +63,12 @@ def main():
                     name=f"{graph_type}-{size}-{model}-{i}",
                     entity="sta-graph-transfer-learning",
                     group=f"{current_date_time}",
-                    config={"global_config": CONFIG,
-                            "model":model,
-                            "graph_type":graph_type,
-                            "size":size},
+                    config={
+                        "global_config": CONFIG,
+                        "model": model,
+                        "graph_type": graph_type,
+                        "size": size,
+                    },
                     mode=cli_options.mode,
                 ) as _:
                     do_single_run(model, graph_type, size)
@@ -76,7 +78,6 @@ def do_single_run(model: str, graph_type: str, size: int):
     g: nx.Graph = load_data(graph_type, size)
     g: dgl.DGLGraph = dgl.from_networkx(g, node_attrs=["origin"]).to(device)
 
-    
     encoder: nn.Module = gtl.training.train_egi_encoder(
         g,
         k=CONFIG["k"][model],
@@ -97,14 +98,14 @@ def do_single_run(model: str, graph_type: str, size: int):
     classes: NDArray = g.ndata["origin"].detach().cpu().numpy()
 
     classifier = SGDClassifier(max_iter=1000)
-    classifier = classifier.fit(node_embeddings,classes)
-
-
+    classifier = classifier.fit(node_embeddings, classes)
 
     # Test!!
-    test_g: nx.Graph = load_data(graph_type, size,test=True)
+    test_g: nx.Graph = load_data(graph_type, size, test=True)
     test_g: dgl.DGLGraph = dgl.from_networkx(test_g, node_attrs=["origin"]).to(device)
-    test_features: torch.Tensor = gtl.features.degree_bucketing(test_g, CONFIG["hidden_layers"]).to(device)
+    test_features: torch.Tensor = gtl.features.degree_bucketing(
+        test_g, CONFIG["hidden_layers"]
+    ).to(device)
 
     test_node_embeddings: torch.Tensor = encoder(test_g, test_features).to(device)
     test_node_embeddings: NDArray = test_node_embeddings.detach().cpu().numpy()
@@ -116,14 +117,17 @@ def do_single_run(model: str, graph_type: str, size: int):
     wandb.summary["accuracy"] = score
 
 
-def load_data(graph_type: str, size: int,test=False):
+def load_data(graph_type: str, size: int, test=False):
     if test:
         n = 2
     else:
         n = 3
 
     match (graph_type, size):
-        case ("modular_ba_poisson", size,):
+        case (
+            "modular_ba_poisson",
+            size,
+        ):
             path = DATA_DIR / "modular" / f"ba-{size}-poisson-{size}-modular-{n}.gml"
 
         case ("core_periphery", _):

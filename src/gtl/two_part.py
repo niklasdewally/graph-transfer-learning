@@ -16,6 +16,7 @@ import networkx as nx
 
 GraphJoiner: TypeAlias = Callable[[nx.Graph, nx.Graph], nx.Graph]
 
+
 def two_part_graph_generator(
     g1s: Iterator[nx.Graph],
     g2s: Iterator[nx.Graph],
@@ -61,7 +62,9 @@ def two_part_graph_generator(
         modular_graph = join_graphs(g1, g2)
 
         # find and return largest connected component
-        lcc = modular_graph.subgraph(max(nx.connected_components(modular_graph),key=len)).copy()
+        lcc = modular_graph.subgraph(
+            max(nx.connected_components(modular_graph), key=len)
+        ).copy()
         lcc = nx.convert_node_labels_to_integers(lcc)
         yield lcc
 
@@ -73,7 +76,7 @@ def join_core_periphery(g_core: nx.Graph, g_periphery: nx.Graph) -> nx.Graph:
     The core is joined to the periphery by attaching edges from core to
     periphery such that these new edges have a similar density as the periphery.
 
-    When using with `two_part_graph_generator`, it is expected that g1s 
+    When using with `two_part_graph_generator`, it is expected that g1s
     generates the core, and g2s generates the periphery.
     """
 
@@ -82,7 +85,9 @@ def join_core_periphery(g_core: nx.Graph, g_periphery: nx.Graph) -> nx.Graph:
 
     # renumber nodes to be 0-n = core, n-m = periphery
     g_core = nx.convert_node_labels_to_integers(g_core)
-    g_periphery = nx.convert_node_labels_to_integers(g_periphery,first_label=g_core.number_of_nodes())
+    g_periphery = nx.convert_node_labels_to_integers(
+        g_periphery, first_label=g_core.number_of_nodes()
+    )
     g = nx.compose(g_core, g_periphery)
 
     # join the periphery to the core using the same density

@@ -2,8 +2,7 @@
 Create random (poisson) graphs according to a joint degree distribution
 of edges and triangles.
 """
-__all__= ["get_clustering_coefficient",
-          "generator"]
+__all__ = ["get_clustering_coefficient", "generator"]
 
 from collections.abc import Iterator
 
@@ -29,7 +28,7 @@ def generator(avg_s: float, avg_t: float, number_of_nodes: int) -> Iterator[nx.G
     kmin_s: int = 0  # smallest degree
     kmax_s: int = 50  # largest degree
     kmin_t: int = 0  # smallest degree
-    kmax_t: int = 50 # largest degree
+    kmax_t: int = 50  # largest degree
 
     # generalised configuration model generation parameters
     gcm_params = {}
@@ -64,4 +63,3 @@ def generator(avg_s: float, avg_t: float, number_of_nodes: int) -> Iterator[nx.G
         G.remove_edges_from(nx.selfloop_edges(G))
         Gcc = sorted(nx.connected_components(G), key=len, reverse=True)
         yield G.subgraph(Gcc[0])
-

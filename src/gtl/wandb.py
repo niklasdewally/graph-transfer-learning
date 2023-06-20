@@ -37,10 +37,12 @@ def log_network_properties(graph: nx.Graph, prefix: str = None) -> None:
     else:
         prefix = ""
 
-    vals = {f"{prefix}nodes": n_nodes,
+    vals = {
+        f"{prefix}nodes": n_nodes,
         f"{prefix}edges": n_edges,
         f"{prefix}assortativity": assortativity,
         f"{prefix}avg_clustering_coefficient": avg_clustering_coefficient,
-        f"{prefix}transitivity": transitivity}
+        f"{prefix}transitivity": transitivity,
+    }
 
     wandb.config.update(vals)

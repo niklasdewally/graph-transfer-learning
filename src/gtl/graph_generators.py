@@ -2,13 +2,11 @@
 Generate synthetic graphs for use in experiments
 """
 
-__all__ = ["add_structural_labels",
-           "generate_barbasi",
-           "generate_forest_fire"
-           ]
+__all__ = ["add_structural_labels", "generate_barbasi", "generate_forest_fire"]
 
 import networkx as nx
 import igraph as ig
+
 
 def add_structural_labels(G, k=1, existing_labels=None):
     """

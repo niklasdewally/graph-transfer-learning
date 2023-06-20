@@ -2,11 +2,12 @@
 Utility functions for the clustered graph synthetic data-set
 """
 
+
 def get_filename(
     graph_type: str,
     is_clustered: bool,
     size: int,
-    i : int,
+    i: int,
 ):
     """
     Return the expected filename for the clustered graph with the given

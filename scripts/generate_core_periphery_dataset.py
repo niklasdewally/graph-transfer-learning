@@ -26,7 +26,7 @@ from tqdm import tqdm
 # Default config for generation
 # to be later overwritten by command arguments
 config = {
-    "sizes": [(75, 500), (15, 100),(750,5000)],
+    "sizes": [(75, 500), (15, 100), (750, 5000)],
     "number_of_repeats": 5,
     "core_mean_degree": 9,
     "core_mean_triangles": 35,
@@ -129,9 +129,9 @@ def _generate_graphs(config: dict):
 
 def _core_generator(core_size: int, config: dict) -> Iterator[nx.Graph]:
     return poisson_generator(
-        config["core_mean_degree"], 
+        config["core_mean_degree"],
         config["core_mean_triangles"],
-        core_size, 
+        core_size,
     )
 
 

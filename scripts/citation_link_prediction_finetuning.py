@@ -17,7 +17,7 @@ from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import train_test_split
 
 BATCHSIZE = 50
-LR = 0.01 
+LR = 0.01
 HIDDEN_LAYERS = 128
 PATIENCE = 10
 MIN_DELTA = 0.01
@@ -26,16 +26,17 @@ N_RUNS = 10
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def main():
-    models = ["egi","triangle"]
-    ks = [1,2,3,4]
 
-    trials = list(itertools.product(models,ks))
+def main():
+    models = ["egi", "triangle"]
+    ks = [1, 2, 3, 4]
+
+    trials = list(itertools.product(models, ks))
     shuffle(trials)
 
     current_date_time = datetime.datetime.now().strftime("%Y%m%dT%H%M")
 
-    for model,k in trials:
+    for model, k in trials:
         for i in range(N_RUNS):
             project = "01 CORA -> Pubmed Link prediction"
             name = f"{model}-k{k}-{i}"
@@ -48,14 +49,14 @@ def main():
                 "encoder-epochs": EPOCHS,
                 "encoder-patience": PATIENCE,
                 "encoder-min-delta": MIN_DELTA,
-                "encoder-lr":LR,
-                "encoder-batchsize":BATCHSIZE
+                "encoder-lr": LR,
+                "encoder-batchsize": BATCHSIZE,
             }
 
             with wandb.init(
                 project=project, name=name, entity=entity, config=config, group=group
-                ) as run:
-                    do_run(k, model)
+            ) as run:
+                do_run(k, model)
 
 
 def get_edge_embedding(emb, a, b):
@@ -83,7 +84,6 @@ def generate_negative_edges(edges, nodes, n):
 
 
 def do_run(k, sampler):
-
     ##########################################################################
     #                            DATA LOADING                                #
     ##########################################################################
@@ -103,10 +103,9 @@ def do_run(k, sampler):
     pubmed = dgl.from_networkx(pubmed_nx)
     pubmed = pubmed.to(device)
 
-
     # track graph properties in configuration
-    
-    gtl.wandb.log_network_properties(pubmed_nx,prefix="pubmed-target")
+
+    gtl.wandb.log_network_properties(pubmed_nx, prefix="pubmed-target")
 
     ##########################################################################
     #            Base Case : Train directly on small pubmed graph            #
@@ -122,13 +121,13 @@ def do_run(k, sampler):
         patience=PATIENCE,
         min_delta=MIN_DELTA,
         sampler=sampler,
-        wandb_summary_prefix="no-pretraining"
+        wandb_summary_prefix="no-pretraining",
     )
 
     encoder = encoder.to(device)
 
     # the maximum degree must be the same as used in training.
-    features = degree_bucketing(pubmed, HIDDEN_LAYERS)  
+    features = degree_bucketing(pubmed, HIDDEN_LAYERS)
     features = features.to(device)
 
     embs = encoder(pubmed, features)
@@ -148,9 +147,7 @@ def do_run(k, sampler):
         edges.append(get_edge_embedding(embs, u, v))
         values.append(0)
 
-    train_edges, val_edges, train_classes, val_classes = train_test_split(
-        edges, values
-    )
+    train_edges, val_edges, train_classes, val_classes = train_test_split(edges, values)
     train_edges = torch.stack(train_edges)  # list of tensors to 3d tensor
     val_edges = torch.stack(val_edges)  # list of tensors to 3d tensor
 
@@ -166,7 +163,9 @@ def do_run(k, sampler):
     ##########################################################################
 
     cora = CoraGraphDataset()[0].to(device)
-    gtl.wandb.log_network_properties(cora.cpu().to_simple().to_networkx(),prefix="cora-source")
+    gtl.wandb.log_network_properties(
+        cora.cpu().to_simple().to_networkx(), prefix="cora-source"
+    )
 
     tmp_file = "tmp_pretrain.pt"
 
@@ -184,7 +183,7 @@ def do_run(k, sampler):
         wandb_summary_prefix="pretrain-cora",
         save_weights_to=tmp_file,
     )
-   
+
     # CORA node features
     features = degree_bucketing(cora, HIDDEN_LAYERS)
 
@@ -214,9 +213,7 @@ def do_run(k, sampler):
         edges.append(get_edge_embedding(embs, u, v))
         values.append(0)
 
-    train_edges, val_edges, train_classes, val_classes = train_test_split(
-        edges, values
-    )
+    train_edges, val_edges, train_classes, val_classes = train_test_split(edges, values)
     train_edges = torch.stack(train_edges)  # list of tensors to 3d tensor
     val_edges = torch.stack(val_edges)  # list of tensors to 3d tensor
 
@@ -258,9 +255,7 @@ def do_run(k, sampler):
         edges.append(get_edge_embedding(embs, u, v))
         values.append(0)
 
-    train_edges, val_edges, train_classes, val_classes = train_test_split(
-        edges, values
-    )
+    train_edges, val_edges, train_classes, val_classes = train_test_split(edges, values)
 
     train_edges = torch.stack(train_edges)  # list of tensors to 3d tensor
     val_edges = torch.stack(val_edges)  # list of tensors to 3d tensor
@@ -271,8 +266,7 @@ def do_run(k, sampler):
     wandb.summary["pretrain-accuracy"] = score
 
     percentage_difference = (
-        wandb.summary["pretrain-accuracy"]
-        - wandb.summary["no-pretraining-accuracy"]
+        wandb.summary["pretrain-accuracy"] - wandb.summary["no-pretraining-accuracy"]
     ) / wandb.summary["no-pretraining-accuracy"]
 
     wandb.summary["% Difference"] = percentage_difference * 100

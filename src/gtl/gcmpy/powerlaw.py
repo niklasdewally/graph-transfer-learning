@@ -3,7 +3,7 @@ Create scale-free (powerlaw distributed) graphs according to a joint degree
 distribution of edges and triangles.
 """
 
-__all__= ["generator"]
+__all__ = ["generator"]
 
 from collections.abc import Iterator
 
@@ -27,7 +27,7 @@ def generator(
 
     # must be atleast 1 for ... reasons
     kmin_t: int = 1  # smallest degree
-    kmax_t: int = 100 # largest degree
+    kmax_t: int = 100  # largest degree
 
     # gcm generator paramaters
     gcm_params = {}
