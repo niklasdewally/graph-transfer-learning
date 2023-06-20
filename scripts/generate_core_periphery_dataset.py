@@ -75,7 +75,7 @@ def _confirm_overwrite(config: dict) -> None | typing.NoReturn:
         return
 
     if config["overwrite"] is True:
-        _empty_directory_for_overwrite(config["data_dir"])
+        _empty_data_directory(config["data_dir"])
         return
 
     if _confirm_choice("The data directory is not empty. Overwrite?"):
