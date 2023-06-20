@@ -24,7 +24,7 @@ generate-setup-file = true
 
 
 [tool.poetry.dependencies]
-python = "3.10.*"
+python = "3.11.*"
 torch = "^2.0.1"
 dgl = [
    {url="https://data.dgl.ai/wheels/cu117/dgl-1.1.0%2Bcu117-cp310-cp310-manylinux1_x86_64.whl",markers="sys_platform =='linux'"},
