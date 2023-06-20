@@ -222,7 +222,12 @@ def train_egi_encoder(
         # each block holds a set of edges from a source to destination
         # each block is a hop in the graph
         for blocks in DataLoader(
-            dgl_graph, train_nodes, sampler, batch_size=batch_size, shuffle=True
+            dgl_graph,
+            train_nodes,
+            sampler,
+            batch_size=batch_size,
+            shuffle=True,
+            device=device,
         ):
             l = model(dgl_graph, features, blocks)
             l.backward()
