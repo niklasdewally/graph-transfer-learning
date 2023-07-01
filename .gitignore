@@ -1,4 +1,5 @@
 
+.pyre/
 poetry.toml
 # R
 *.Rproj
