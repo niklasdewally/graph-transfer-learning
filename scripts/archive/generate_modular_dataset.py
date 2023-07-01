@@ -9,10 +9,8 @@ import random as rng
 from collections.abc import Iterator
 
 import networkx as nx
-from gtl.two_part import join_core_periphery, two_part_graph_generator
-from tqdm import tqdm
+from gtl.two_part import two_part_graph_generator
 from gcmpy import NetworkNames
-from IPython import embed
 import gtl.gcmpy.powerlaw
 import gtl.gcmpy.poisson
 from networkx.readwrite.gml import literal_stringizer

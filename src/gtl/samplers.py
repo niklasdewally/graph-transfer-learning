@@ -1,8 +1,6 @@
 import dgl
 import torch
 from dgl.dataloading import Sampler
-from IPython import embed
-from .graph import TRIANGLES
 
 from random import sample
 
@@ -10,13 +8,14 @@ __all__ = ["KHopTriangleSampler"]
 
 
 class KHopTriangleSampler(Sampler):
-    def __init__(self, g: dgl.DGLGraph, fanouts, triangles: dict[list[list]]):
+    def __init__(self, g: dgl.DGLGraph, fanouts:list[int], triangles: dict[int,list[list[int]]]) -> None:
         super().__init__()
         self.fanouts = fanouts
         self.g = g
         self.triangles = triangles
 
-    def sample(self, _, seed_nodes):
+    #pyre-ignore[3]
+    def sample(self, _, seed_nodes: torch.Tensor):
         # loosely inspired by
         # https://github.com/dmlc/dgl/blob/master/python/dgl/dataloading/neighbor_sampler.py
         output_nodes = seed_nodes
@@ -30,7 +29,7 @@ class KHopTriangleSampler(Sampler):
             blocks.insert(0, block)
         return seed_nodes, output_nodes, blocks
 
-    def _sample_triangle_neighbors(self, seed_nodes, fanout):
+    def _sample_triangle_neighbors(self, seed_nodes: torch.Tensor, fanout: int) -> dgl.DGLGraph:
         """
 
         Sample triangles that contain the given nodes, and return the induced subgraph.
@@ -52,9 +51,8 @@ class KHopTriangleSampler(Sampler):
         """
         edges = torch.empty(0, device=self.g.device, dtype=torch.int64)
 
-        for nid in seed_nodes:
-            nid_tensor = nid
-            nid : int = nid.item()
+        for nid_tensor in seed_nodes:
+            nid : int = nid_tensor.item()
             sampled_triangles = torch.tensor(
                 sample(self.triangles[nid], min(fanout,len(self.triangles[nid]))),
                 device=self.g.device,
@@ -63,7 +61,6 @@ class KHopTriangleSampler(Sampler):
 
             # [1,2,3,4,...]
             sampled_nodes = torch.flatten(sampled_triangles).unique()
-
             new_edges = self.g.edge_ids(
                 nid_tensor.repeat(sampled_nodes.shape[0]), sampled_nodes
             )

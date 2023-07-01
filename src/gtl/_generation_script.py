@@ -6,6 +6,7 @@ import typing
 from collections.abc import Iterator
 from pathlib import Path
 from typing import TypeAlias
+from collections.abc import MutableMapping
 
 import networkx as nx
 from gcmpy import NetworkNames
@@ -30,10 +31,9 @@ class GraphGenerationScript:
     The GraphGenerationStrategy passed in is expected to return a tuple of (filename,nx graph).
     """
 
-    def __init__(self, generation_strategy: GraphGenerationStrategy):
-        self.generator = generation_strategy
-        # pyre-ignore[8]:
-        self.opts: typing.Dict[typing.Any, typing.Any] = None
+    def __init__(self, generation_strategy: GraphGenerationStrategy) -> None:
+        self.generator: GraphGenerationStrategy = generation_strategy
+        self.opts: MutableMapping = dict()
 
         # pyre-ignore[8]:
         self.data_dir: pathlib.Path = None
@@ -57,7 +57,7 @@ class GraphGenerationScript:
                 pass
 
     @staticmethod
-    def _mine_and_save_graph(opts, data_dir, t: tuple[str, nx.Graph]):
+    def _mine_and_save_graph(opts: MutableMapping, data_dir: Path , t: tuple[str, nx.Graph]) -> str:
         filename, g = t
         _delete_gcmpy_metadata(g)
 
@@ -109,7 +109,7 @@ class GraphGenerationScript:
         print("Error: data directory is not empty.")
         sys.exit(1)
 
-    def set_generation_strategy(self, generation_strategy: GraphGenerationStrategy):
+    def set_generation_strategy(self, generation_strategy: GraphGenerationStrategy) -> None:
         self.generator = generation_strategy
 
 

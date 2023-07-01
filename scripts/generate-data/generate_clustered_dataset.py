@@ -4,20 +4,13 @@ This file generates clustered and unclustered graphs using poisson and powerlaw 
 For more information, see gtl.gcmpy.poisson and gtl.gcmpy.powerlaw.
 """
 
-import pathlib
+from collections.abc import Iterator, MutableMapping
+
 import gtl.gcmpy
-import sys
 import networkx as nx
-from tqdm import tqdm
-import argparse
-
-from statistics import mean
-
-from typing import Optional
-from collections.abc import Callable, Iterator
 from gtl import GraphGenerationScript
 
-config = {
+config: MutableMapping = {
     "sizes": [100, 1000],
     "number_of_repeats": 5,
 }
@@ -27,7 +20,7 @@ def main() -> None:
     GraphGenerationScript(_generator(config))()
 
 
-def _generator(config: dict) -> Iterator[str, nx.Graph]:
+def _generator(config: MutableMapping) -> Iterator[tuple[str, nx.Graph]]:
     for x in _poisson_generator(config):
         yield x
 
@@ -35,7 +28,7 @@ def _generator(config: dict) -> Iterator[str, nx.Graph]:
         yield x
 
 
-def _poisson_generator(config: dict) -> Iterator[str, nx.Graph]:
+def _poisson_generator(config: MutableMapping) -> Iterator[tuple[str, nx.Graph]]:
     for size in config["sizes"]:
         clustered_generator = gtl.gcmpy.poisson.generator(4.7, 50, size)
         for i in range(config["number_of_repeats"]):
@@ -52,8 +45,8 @@ def _poisson_generator(config: dict) -> Iterator[str, nx.Graph]:
             yield (filename, g)
 
 
-def _powerlaw_generator(config: dict) -> Iterator[str, nx.Graph]:
-    def gen(p):
+def _powerlaw_generator(config: MutableMapping) -> Iterator[tuple[str, nx.Graph]]:
+    def gen(p: float) -> Iterator[nx.Graph]:
         while True:
             yield nx.powerlaw_cluster_graph(size, 2, p)
 

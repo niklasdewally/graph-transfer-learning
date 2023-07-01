@@ -3,7 +3,8 @@ import itertools
 import pathlib
 import sys
 from argparse import ArgumentParser, Namespace
-from random import randint, sample, shuffle
+from random import shuffle
+from collections.abc import MutableMapping
 
 import dgl
 import gtl.features
@@ -11,13 +12,15 @@ import gtl.training
 import networkx as nx
 import numpy as np
 import torch
-import torch.nn as nn
+from numpy.typing import NDArray
+
+
+# pyre-ignore[21]:
 import wandb
 from dgl.sampling import global_uniform_negative_sampling
 from gtl import Graph
 from gtl.cli import add_wandb_options
 from gtl.clustered import get_filename
-from IPython import embed
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import train_test_split
 
@@ -27,7 +30,7 @@ DATA_DIR: pathlib.Path = PROJECT_DIR / "data" / "generated" / "clustered"
 
 
 # Experimental constants
-CONFIG = {
+CONFIG: MutableMapping = {
     "batch_size": 50,
     "LR": 0.01,
     "hidden_layers": 32,
@@ -56,8 +59,7 @@ def _load_edgelist(path: pathlib.Path | str) -> dgl.DGLGraph:
         )
         sys.exit(1)
 
-    g: nx.Graph = nx.read_edgelist(path)
-    g: dgl.DGLGraph = dgl.from_networkx(g).to(device)
+    g: dgl.DGLGraph = dgl.from_networkx(nx.read_edgelist(path)).to(device)
 
     return g
 
@@ -65,7 +67,7 @@ def _load_edgelist(path: pathlib.Path | str) -> dgl.DGLGraph:
 # DATASETS
 
 
-def main(opts) -> None:
+def main(opts: Namespace) -> None:
     # parameter sweep
     trials = list(itertools.product(MODELS, GRAPH_TYPES, SIZES))
     shuffle(trials)
@@ -100,7 +102,7 @@ def main(opts) -> None:
 
                 try:
                     _do_run(model, graph_type, src, target, src_size, target_size)
-                except Exception as e:
+                except Exception:
                     # report run as failed
                     wandb.finish(exit_code=1)
                     i -= 1
@@ -108,7 +110,12 @@ def main(opts) -> None:
 
 
 def _do_run(
-    model: str, graph_type: str, src: str, target: str, src_size: int, target_size: int
+    model: str,
+    graph_type: str,
+    src: bool,
+    target: bool,
+    src_size: int,
+    target_size: int,
 ) -> None:
     src_g: dgl.DGLGraph = _load_edgelist(
         DATA_DIR / get_filename(graph_type, src, src_size, 0)
@@ -117,12 +124,12 @@ def _do_run(
         DATA_DIR / get_filename(graph_type, target, target_size, 1)
     )
 
-    encoder: nn.Module = gtl.training.train_egi_encoder(
+    encoder = gtl.training.train_egi_encoder(
         Graph.from_dgl_graph(src_g),
         k=CONFIG["k"][model],
         lr=CONFIG["LR"],
         n_hidden_layers=CONFIG["hidden_layers"],
-        sampler=model,
+        sampler_type=model,
         save_weights_to="pretrain.pt",
         patience=CONFIG["patience"],
         min_delta=CONFIG["min_delta"],
@@ -239,13 +246,13 @@ def _do_run(
     wandb.summary["target-accuracy"] = score
 
 
-def _get_edge_embedding(emb, a, b):
+def _get_edge_embedding(emb: torch.Tensor, a: torch.Tensor, b: torch.Tensor) -> NDArray:
     return np.multiply(emb[a].detach().cpu(), emb[b].detach().cpu())
 
 
 if __name__ == "__main__":
     parser: ArgumentParser = add_wandb_options(ArgumentParser())
     opts: Namespace = parser.parse_args()
-    if opts.mode == None:
+    if opts.mode is None:
         opts.mode = "online"
     main(opts)

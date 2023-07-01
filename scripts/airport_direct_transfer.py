@@ -17,6 +17,8 @@ https://proceedings.neurips.cc/paper/2021/hash/0dd6049f5fa537d41753be6d37859430-
 """
 
 
+from collections.abc import MutableMapping
+
 import datetime
 import itertools
 import pathlib
@@ -24,6 +26,7 @@ import tempfile
 from argparse import Namespace, ArgumentParser
 from pathlib import Path
 from random import shuffle
+from gtl.typing import PathLike
 
 import dgl
 import gtl
@@ -33,30 +36,25 @@ import gtl.wandb
 import numpy as np
 import torch
 import torch.nn as nn
-
 # pyre-ignore[21]
 import wandb
 from gtl.cli import add_wandb_options
 from gtl.features import degree_bucketing
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import train_test_split
-from torch.profiler import ProfilerActivity, profile, record_function
 from numpy.typing import NDArray
 from gtl import Graph
 
-from typing import Any
-
 # setup directorys to use for airport data
-SCRIPT_DIR: pathlib.Path = pathlib.Path(__file__).parent.resolve()
-PROJECT_DIR: pathlib.Path = SCRIPT_DIR.parent.resolve()
-DATA_DIR: pathlib.Path = PROJECT_DIR / "data" / "airports"
+SCRIPT_DIR: Path = pathlib.Path(__file__).parent.resolve()
+PROJECT_DIR: Path = SCRIPT_DIR.parent.resolve()
+DATA_DIR: Path = PROJECT_DIR / "data" / "airports"
 
 # directory to store temporary model weights used while training
 TMP_DIR: tempfile.TemporaryDirectory[str] = tempfile.TemporaryDirectory()
 
-# some experimental constants
-CONFIG: dict[str, Any] = {
-    "batch_size": 50,
+# some experimental coCONFIG: dict[str, Any] = {
+CONFIG: MutableMapping = {
     "LR": 0.01,
     "hidden_layers": 32,
     "patience": 10,
@@ -70,7 +68,7 @@ CONFIG: dict[str, Any] = {
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def load_dataset(edgefile, labelfile) -> tuple[Graph, NDArray]:
+def load_dataset(edgefile: PathLike, labelfile: PathLike) -> tuple[Graph, NDArray]:
     edges = np.loadtxt(edgefile, dtype="int")
     us = torch.from_numpy(edges[:, 0]).to(device)
     vs = torch.from_numpy(edges[:, 1]).to(device)
@@ -87,9 +85,13 @@ def load_dataset(edgefile, labelfile) -> tuple[Graph, NDArray]:
 
 
 europe_g : Graph
+
+#pyre-ignore[5]:
 europe_labels: NDArray
 
 brazil_g : Graph
+
+#pyre-ignore[5]:
 brazil_labels: NDArray
 
 europe_g, europe_labels = load_dataset(
@@ -106,7 +108,7 @@ brazil_g, brazil_labels = load_dataset(
 )
 
 
-def main(opts) -> None:
+def main(opts: Namespace) -> None:
     models = ["egi", "triangle"]
     ks = [1, 2, 3, 4]
 
@@ -133,13 +135,13 @@ def main(opts) -> None:
                 config=config,
                 group=group,
                 mode=opts.mode,
-            ) as run:
+            ) as _:
                 # add global config
                 wandb.config.update(CONFIG)
                 do_run(k, model)
 
 
-def do_run(k: int, sampler) -> None:
+def do_run(k: int, sampler: str) -> None:
     # node features for encoder
     europe_node_feats = degree_bucketing(
         europe_g.as_dgl_graph(device), wandb.config["hidden_layers"]
@@ -241,7 +243,7 @@ def do_run(k: int, sampler) -> None:
 if __name__ == "__main__":
     parser: ArgumentParser = add_wandb_options(ArgumentParser())
     opts: Namespace = parser.parse_args()
-    if opts.mode == None:
+    if opts.mode is None:
         opts.mode = "online"
     main(opts)
 

@@ -1,6 +1,8 @@
 from copy import deepcopy
-from os import PathLike
-from typing import NoReturn
+from .typing import PathLike
+from typing import Optional
+from collections.abc import Mapping
+import torch
 
 import dgl
 import networkx as nx
@@ -18,17 +20,23 @@ class Graph:
     These features are stored in node, edge, and graph attributes.
     """
 
-    def __init__(self, g: nx.Graph):
-        self._G = deepcopy(g)
+    def __init__(self, g: nx.Graph) -> None:
+        self._G: nx.Graph = deepcopy(g)
 
     @staticmethod
-    def from_gml_file(path: PathLike):
+    def from_gml_file(path: PathLike) -> "Graph":
         g = nx.read_gml(path, destringizer=literal_destringizer)
         return Graph(g)
 
     @staticmethod
-    def from_dgl_graph(g: dgl.DGLGraph, node_attrs=None, edge_attrs=None):
-        nx_g: nx.Graph = dgl.to_networkx(g.cpu(), node_attrs, edge_attrs).to_undirected()
+    def from_dgl_graph(
+        g: dgl.DGLGraph,
+        node_attrs: Optional[Mapping] = None,
+        edge_attrs: Optional[Mapping] = None,
+    ) -> "Graph":
+        nx_g: nx.Graph = dgl.to_networkx(
+            g.cpu(), node_attrs, edge_attrs
+        ).to_undirected()
         return Graph(nx_g)
 
     def as_nx_graph(self) -> nx.Graph:
@@ -37,7 +45,9 @@ class Graph:
         """
         return self._G
 
-    def as_dgl_graph(self, device, **kwargs) -> dgl.DGLGraph:
+    def as_dgl_graph(
+        self, device: torch.device, **kwargs: Optional[Mapping]
+    ) -> dgl.DGLGraph:
         return dgl.from_networkx(self._G, device=device, **kwargs)
 
     def to_gml_file(self, path: PathLike) -> None:
@@ -63,7 +73,7 @@ class Graph:
             triangle_nodes = sorted(x for j, x in enumerate(nodes) if j != i)
             self._G.nodes[current_node][TRIANGLES].append(triangle_nodes)
 
-    def remove_triangle(self, node1, node2, node3) -> None:
+    def remove_triangle(self, node1: int, node2: int, node3: int) -> None:
         nodes = [node1, node2, node3]
         for i, current_node in enumerate(nodes):
             try:
@@ -72,7 +82,7 @@ class Graph:
             except KeyError:
                 pass
 
-    def get_triangles(self, node) -> list[list]:
+    def get_triangles(self, node: int) -> list[list[int]]:
         try:
             if not isinstance(self._G.nodes[node][TRIANGLES], list):
                 raise TypeError(f"{TRIANGLES} attribute of {node} should be a list")
@@ -81,18 +91,23 @@ class Graph:
         except KeyError:
             return list()
 
-    def get_triangles_dictionary(self) -> dict[int,list[list]]:
+    def get_triangles_dictionary(self) -> dict[int, list[list[int]]]:
         if not self.has_mined_triangles():
-            raise ValueError("This graph has no mined triangles - generate them using mine_triangles()")
+            raise ValueError(
+                "This graph has no mined triangles - generate them using mine_triangles()"
+            )
         return nx.get_node_attributes(self._G, TRIANGLES)
 
     def mine_triangles(self) -> None:
         self._reset_triangles()
         # https://stackoverflow.com/questions/1705824/finding-cycle-of-3-nodes-or-triangles-in-a-graph
         all_cliques: list[int] = nx.enumerate_all_cliques(self._G)
+
+        # pyre-ignore[6]:
         triangles: list[int] = [x for x in all_cliques if len(x) == 3]
 
         for triangle in triangles:
+            # pyre-ignore[23]:
             n1, n2, n3 = triangle
             self.add_triangle(n1, n2, n3)
 

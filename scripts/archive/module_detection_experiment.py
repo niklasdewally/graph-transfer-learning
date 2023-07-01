@@ -1,5 +1,4 @@
 import argparse
-from IPython import embed
 import datetime
 import itertools
 import pathlib
@@ -9,15 +8,12 @@ import dgl
 import gtl.features
 import gtl.training
 import networkx as nx
-import sklearn
 import torch
 import torch.nn as nn
 import wandb
 from gtl.cli import add_wandb_options
 from numpy.typing import NDArray
 from sklearn.linear_model import SGDClassifier
-from sklearn.model_selection import train_test_split
-from gcmpy import NetworkNames
 
 warnings.filterwarnings("ignore")
 

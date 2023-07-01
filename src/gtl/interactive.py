@@ -8,7 +8,7 @@ from statistics import *
 
 
 def draw_twopart(G) -> None:
-    fig = plt.figure()
+    plt.figure()
     pos = nx.spring_layout(G)
     colour_map = [
         "green" if (origin == 1 or origin == "core") else "red"

@@ -4,15 +4,15 @@ from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import train_test_split
 import pathlib
 
-import dgl
+from collections.abc import MutableMapping
 import gtl.features
 import gtl.training
 from gtl import Graph
 import networkx as nx
 import torch
-import torch.nn as nn
 from gtl.cli import add_wandb_options
 from dgl.sampling import global_uniform_negative_sampling
+#pyre-ignore[21]:
 import wandb
 import tomllib
 
@@ -37,7 +37,7 @@ DATA_DIR: pathlib.Path = PROJECT_DIR / "data" / "generated" / "core-periphery"
 
 # default, model independent config
 # model specific config is loaded from .toml later
-default_config = {
+default_config: MutableMapping = {
     "repeats_per_trial": 1,
 }
 
@@ -53,7 +53,7 @@ def main() -> None:
 
     for model in ["triangle", "egi"]:
         # load model specific config from .toml file
-        model_config: dict = _load_model_config(model)
+        model_config: MutableMapping = _load_model_config(model)
 
         for source_sizes in [(15, 100), (75, 500), (750, 5000)]:
             for target_sizes in [(15, 100), (75, 500), (750, 5000)]:
@@ -86,7 +86,7 @@ def main() -> None:
                     wandb.finish()
 
 
-def _load_model_config(model: str) -> dict:
+def _load_model_config(model: str) -> MutableMapping:
     with open(HYPERPARAMS_DIR / f"{model}.toml", "rb") as f:
         config = tomllib.load(f)
     return config
@@ -106,7 +106,7 @@ def run() -> None:
         f"{wandb.config.target_core_size}-{wandb.config.target_periphery_size}-1.gml"
     )
 
-    target_g: nx.Graph = Graph(nx.read_gml(DATA_DIR / target_g_name))
+    target_g: Graph = Graph(nx.read_gml(DATA_DIR / target_g_name))
 
     wandb.config["target_graph_filename"] = target_g_name
     wandb.config["source_graph_filename"] = src_g_name
@@ -117,32 +117,32 @@ def run() -> None:
 
     model_params = wandb.config
 
-    encoder: nn.Module = gtl.training.train_egi_encoder(
+    encoder = gtl.training.train_egi_encoder(
         src_g,
         k=model_params["k"],
         lr=model_params["lr"],
         n_hidden_layers=model_params["hidden_layers"],
-        sampler=wandb.config["model"],
+        sampler_type=wandb.config["model"],
         patience=model_params["patience"],
         min_delta=model_params["min_delta"],
         n_epochs=model_params["epochs"],
     )
 
     features: torch.Tensor = gtl.features.degree_bucketing(
-        src_g.as_dgl_graph(), model_params["hidden_layers"]
+        src_g.as_dgl_graph(device), model_params["hidden_layers"]
     )
     features = features.to(device)
 
-    node_embeddings: torch.Tensor = encoder(src_g.as_dgl_graph(), features)
+    node_embeddings: torch.Tensor = encoder(src_g.as_dgl_graph(device), features)
 
     # generate negative edges
     negative_us, negative_vs = global_uniform_negative_sampling(
-        src_g.as_dgl_graph(), (src_g.as_dgl_graph().num_edges())
+        src_g.as_dgl_graph(device), (src_g.as_dgl_graph(device).num_edges())
     )
 
     # get and shuffle positive edges
-    shuffle_mask = torch.randperm(src_g.as_dgl_graph().num_edges())
-    us, vs = src_g.as_dgl_graph().edges()
+    shuffle_mask = torch.randperm(src_g.as_dgl_graph(device).num_edges())
+    us, vs = src_g.as_dgl_graph(device).edges()
     us = us[shuffle_mask]
     vs = vs[shuffle_mask]
 
@@ -185,19 +185,19 @@ def run() -> None:
     # DIRECT TRANSFER TO TARGET #
     #############################
 
-    features = gtl.features.degree_bucketing(target_g.as_dgl_graph(), model_params["hidden_layers"])
+    features = gtl.features.degree_bucketing(target_g.as_dgl_graph(device), model_params["hidden_layers"])
     features = features.to(device)
 
-    embs = encoder(target_g.as_dgl_graph(), features)
+    embs = encoder(target_g.as_dgl_graph(device), features)
 
     # generate negative edges
     negative_us, negative_vs = global_uniform_negative_sampling(
-        target_g, (target_g.num_edges())
+        target_g, (target_g.as_dgl_graph(device).num_edges())
     )
 
     # get and shuffle positive edges
-    shuffle_mask = torch.randperm(target_g.as_dgl_graph()num_edges())
-    us, vs = target_g.as_dgl_graph().edges()
+    shuffle_mask = torch.randperm(target_g.as_dgl_graph(device).num_edges())
+    us, vs = target_g.as_dgl_graph(device).edges()
     us = us[shuffle_mask]
     vs = vs[shuffle_mask]
 

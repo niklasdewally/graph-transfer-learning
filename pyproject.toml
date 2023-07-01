@@ -48,7 +48,21 @@ matplotlib = "3.5.1"
 ipython = "^8.14.0"
 black = "*"
 pyre-check = "^0.9.18"
+ruff = "^0.0.275"
 
 [build-system]
 requires = ["poetry-core","torch"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+# Never enforce `E501` (line length violations).
+ignore = ["E501"]
+
+# Avoid trying to fix flake8-bugbear (`B`) violations.
+unfixable = ["B"]
+
+# Ignore `E402` (import violations) in all `__init__.py` files, and in `path/to/file.py`.
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["E402"]
+"path/to/file.py" = ["E402"]
+

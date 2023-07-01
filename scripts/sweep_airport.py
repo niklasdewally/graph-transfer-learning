@@ -10,12 +10,8 @@ import pathlib
 
 import argparse
 import datetime
-import itertools
 import pathlib
 import tempfile
-from argparse import ArgumentParser
-from pathlib import Path
-from random import shuffle
 
 import dgl
 import gtl
@@ -24,9 +20,7 @@ import gtl.training
 import gtl.wandb
 import numpy as np
 import torch
-import torch.nn as nn
 import wandb
-from gtl.cli import add_wandb_options
 from gtl.features import degree_bucketing
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import train_test_split
@@ -84,7 +78,7 @@ def main() -> None:
 
 def train() -> None:
     # start a run, providing defaults that can be over-ridden by a sweep
-    run = wandb.init(config=config)
+    wandb.init(config=config)
 
     # to reduce variance, do many runs, and optimise on the average
     results = []

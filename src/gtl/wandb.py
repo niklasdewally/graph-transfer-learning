@@ -3,10 +3,12 @@ Utilities to log various metadata to Weights and Biases.
 """
 
 import networkx as nx
+#pyre-ignore[21]
 import wandb
+from typing import Optional
 
 
-def log_network_properties(graph: nx.Graph, prefix: str = None) -> None:
+def log_network_properties(graph: nx.Graph, prefix: Optional[str] = None) -> None:
     """
     Log properties of the given graph to the current wandb run. This includes:
         * Number of nodes

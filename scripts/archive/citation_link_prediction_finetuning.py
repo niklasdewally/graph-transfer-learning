@@ -55,7 +55,7 @@ def main():
 
             with wandb.init(
                 project=project, name=name, entity=entity, config=config, group=group
-            ) as run:
+            ):
                 do_run(k, model)
 
 

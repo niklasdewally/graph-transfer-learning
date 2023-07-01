@@ -10,7 +10,7 @@ import torch
 import dgl
 
 
-def degree_bucketing(graph: dgl.DGLGraph, max_degree: int = 10) -> torch.tensor:
+def degree_bucketing(graph: dgl.DGLGraph, max_degree: int = 10) -> torch.Tensor:
     """
     Create a feature tensor for a graph's nodes using degree bucketing.
 

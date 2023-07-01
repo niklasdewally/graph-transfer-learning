@@ -11,14 +11,11 @@ import torch.nn as nn
 import wandb
 from dgl.dataloading import DataLoader
 from tqdm import tqdm
-import typing
 
 from ..features import degree_bucketing
 from ..models import EGI
 from ..samplers import KHopTriangleSampler
 from .. import Graph
-from dgl.dataloading.neighbor_sampler import NeighborSampler
-from gtl.models.egi import _Encoder
 from gtl.samplers import KHopTriangleSampler
 from typing import Union, Callable
 
