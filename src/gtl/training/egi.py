@@ -7,36 +7,43 @@ from warnings import warn
 import dgl
 import torch
 import torch.nn as nn
+# pyre-ignore[21]:
 import wandb
 from dgl.dataloading import DataLoader
 from tqdm import tqdm
+import typing
 
 from ..features import degree_bucketing
 from ..models import EGI
 from ..samplers import KHopTriangleSampler
+from .. import Graph
+from dgl.dataloading.neighbor_sampler import NeighborSampler
+from gtl.models.egi import _Encoder
+from gtl.samplers import KHopTriangleSampler
+from typing import Union, Callable
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def train_egi_encoder(
-    dgl_graph,
-    gpu=-1,
-    k=2,
-    lr=0.01,
-    n_hidden_layers=32,
-    n_epochs=100,
-    weight_decay=0.0,
-    feature_mode="degree_bucketing",
-    optimiser="adam",
+    graph: Graph,
+    gpu: int = -1,
+    k: int = 2,
+    lr: float = 0.01,
+    n_hidden_layers: int = 32,
+    n_epochs: int = 100,
+    weight_decay: float = 0.0,
+    feature_mode: str = "degree_bucketing",
+    optimiser: str = "adam",
     pre_train=None,
-    batch_size=50,
-    sampler="egi",
+    batch_size: int = 50,
+    sampler_type: str = "egi",
     save_weights_to=None,
-    patience=10,
-    min_delta=0.01,
-    wandb_enabled=True,
-    wandb_summary_prefix="",
-):
+    patience: int = 10,
+    min_delta: float = 0.01,
+    wandb_enabled: bool = True,
+    wandb_summary_prefix: str = "",
+) -> Union[Callable[[dgl.DGLGraph, torch.Tensor], torch.Tensor], nn.Module]:
     """
     Train an EGI [1] graph encoder.
 
@@ -48,7 +55,7 @@ def train_egi_encoder(
 
     Args:
 
-        dgl_graph: The input graph, as a DGLGraph.
+        graph: The input graph, as a gtl Graph.
 
         k: The number of hops to consider in the ego-graphs.
            Defaults to 2, which was shown to have the best results in the
@@ -71,7 +78,7 @@ def train_egi_encoder(
 
         batch_size: The number of nodes to consider in each training batch.
 
-        sampler: The subgraph sampler to use.
+        sampler_type: The subgraph sampler to use.
             Options are ['egi','triangle']
             Defaults to 'egi'.
 
@@ -105,7 +112,6 @@ def train_egi_encoder(
             model.
 
             Defaults to "".
-
 
 
     Returns:
@@ -145,9 +151,10 @@ def train_egi_encoder(
             "Valid options are {valid_optimisers}."
         )
 
-    if sampler not in valid_samplers:
+    if sampler_type not in valid_samplers:
         raise ValueError(
-            f"{sampler} is not a valid sampler." "Valid options are {valid_sampler}."
+            f"{sampler_type} is not a valid sampler."
+            "Valid options are {valid_sampler}."
         )
 
     if k < 1:
@@ -155,6 +162,8 @@ def train_egi_encoder(
 
     if lr <= 0:
         raise ValueError("Learning rate must be above 0.")
+
+    dgl_graph: dgl.DGLGraph = graph.as_dgl_graph(device)
 
     # setup temporary directory for saving models for early-stopping
     temporary_directory = tempfile.TemporaryDirectory()
@@ -164,10 +173,18 @@ def train_egi_encoder(
 
     features = degree_bucketing(dgl_graph, n_hidden_layers)
 
-    if sampler == "egi":
-        sampler = dgl.dataloading.NeighborSampler([10 for i in range(k)])
-    elif sampler == "triangle":
-        sampler = KHopTriangleSampler(dgl_graph, [10 for i in range(k)])
+    if sampler_type == "egi":
+        sampler: dgl.dataloading.Sampler = dgl.dataloading.NeighborSampler(
+            [10 for i in range(k)]
+        )
+    elif sampler_type == "triangle":
+        if not graph.has_mined_triangles():
+            warn("Input graph contains no mined triangles - mining now")
+            graph.mine_triangles()
+        triangles = graph.get_triangles_dictionary()
+        sampler: dgl.dataloading.Sampler = KHopTriangleSampler(
+            dgl_graph, [10 for i in range(k)], triangles
+        )
 
     features = features.to(device)
     dgl_graph = dgl_graph.to(device)

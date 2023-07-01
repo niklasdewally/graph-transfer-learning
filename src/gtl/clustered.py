@@ -8,7 +8,7 @@ def get_filename(
     is_clustered: bool,
     size: int,
     i: int,
-):
+) -> str:
     """
     Return the expected filename for the clustered graph with the given
     parameters.

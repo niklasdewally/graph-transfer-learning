@@ -11,7 +11,7 @@ import networkx as nx
 from gcmpy import GCMAlgorithmNames, JointDegreeNames
 
 
-def get_clustering_coefficient(avg_s, avg_t) -> float:
+def get_clustering_coefficient(avg_s, avg_t: int) -> float:
     """
     Given the overall average degree (avg_s) and the average triangles (avg_t)
     FOR POISSON ONLY, return the clustering coefficient of the network.

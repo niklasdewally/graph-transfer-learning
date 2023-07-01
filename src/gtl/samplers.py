@@ -2,19 +2,23 @@ import dgl
 import torch
 from dgl.dataloading import Sampler
 from IPython import embed
+from .graph import TRIANGLES
+
+from random import sample
 
 __all__ = ["KHopTriangleSampler"]
 
 
 class KHopTriangleSampler(Sampler):
-    def __init__(self, g, fanouts):
+    def __init__(self, g: dgl.DGLGraph, fanouts, triangles: dict[list[list]]):
         super().__init__()
         self.fanouts = fanouts
-        self.triangles = None
         self.g = g
+        self.triangles = triangles
 
     def sample(self, _, seed_nodes):
-        # loosely inspired by https://github.com/dmlc/dgl/blob/master/python/dgl/dataloading/neighbor_sampler.py
+        # loosely inspired by
+        # https://github.com/dmlc/dgl/blob/master/python/dgl/dataloading/neighbor_sampler.py
         output_nodes = seed_nodes
         blocks = []
         for fanout in reversed(self.fanouts):
@@ -26,31 +30,10 @@ class KHopTriangleSampler(Sampler):
             blocks.insert(0, block)
         return seed_nodes, output_nodes, blocks
 
-    def _populate_triangles(self):
-        self.triangles = dict()
-        for nid in self.g.nodes():
-            self.triangles[nid.item()] = self._get_triangles(nid.item())
-
-    def _get_triangles(self, nid):
-        edges = torch.empty(0, device=self.g.device, dtype=torch.int64)
-        neighbors = self.g.successors(nid)
-
-        triads = torch.combinations(neighbors)
-        for i in range(triads.shape[0]):
-            neighbor = triads[i][0]
-            neighbor2 = triads[i][1]
-            if torch.all(self.g.has_edges_between([neighbor], [neighbor2])):
-                newedges = self.g.edge_ids(
-                    [nid, nid], [neighbor, neighbor2], return_uv=False
-                ).to(self.g.device)
-                edges = torch.cat((edges, newedges)).to(self.g.device)
-
-        return edges
-
     def _sample_triangle_neighbors(self, seed_nodes, fanout):
         """
 
-        Sample triangles that contain the given nodes, and return the induced node subgraph.
+        Sample triangles that contain the given nodes, and return the induced subgraph.
 
         The original IDs of the sampled nodes are stored as the `dgl.NID` feature
         in the returned graph.
@@ -67,23 +50,25 @@ class KHopTriangleSampler(Sampler):
             fanout : int
                 The number of edges to be sampled.
         """
-        if self.triangles is None:
-            self._populate_triangles()
-
         edges = torch.empty(0, device=self.g.device, dtype=torch.int64)
 
         for nid in seed_nodes:
-            nid = nid.item()
-            new_edges = self.triangles[nid]
-            random_mask = torch.randperm(new_edges.shape[0])
-            # shuffle edges, then take either 10 triangles, or how ever many edges there are in the graph (if this is less)
-            # (note that each triangle has three edges in edges)
-            sampled_edges = new_edges[random_mask][
-                : min(fanout * 2, new_edges.shape[0])
-            ]
-            edges = torch.cat([edges, sampled_edges])
+            nid_tensor = nid
+            nid : int = nid.item()
+            sampled_triangles = torch.tensor(
+                sample(self.triangles[nid], min(fanout,len(self.triangles[nid]))),
+                device=self.g.device,
+                dtype=torch.int64,
+            )
 
-        # return node induced subgraph
-        subg = dgl.edge_subgraph(self.g, edges).to(self.g.device)
+            # [1,2,3,4,...]
+            sampled_nodes = torch.flatten(sampled_triangles).unique()
+
+            new_edges = self.g.edge_ids(
+                nid_tensor.repeat(sampled_nodes.shape[0]), sampled_nodes
+            )
+            edges = torch.cat([edges, new_edges])
+
+        subg = dgl.edge_subgraph(self.g, edges.unique()).to(self.g.device)
         subg.edata[dgl.EID] = edges.clone().detach()
         return subg

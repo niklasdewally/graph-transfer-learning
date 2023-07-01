@@ -2,7 +2,7 @@ import datetime
 import itertools
 import pathlib
 import sys
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from random import randint, sample, shuffle
 
 import dgl
@@ -14,15 +14,16 @@ import torch
 import torch.nn as nn
 import wandb
 from dgl.sampling import global_uniform_negative_sampling
+from gtl import Graph
 from gtl.cli import add_wandb_options
 from gtl.clustered import get_filename
 from IPython import embed
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import train_test_split
 
-SCRIPT_DIR = pathlib.Path(__file__).parent.resolve()
-PROJECT_DIR = SCRIPT_DIR.parent.resolve()
-DATA_DIR = PROJECT_DIR / "data" / "generated" / "clustered"
+SCRIPT_DIR: pathlib.Path = pathlib.Path(__file__).parent.resolve()
+PROJECT_DIR: pathlib.Path = SCRIPT_DIR.parent.resolve()
+DATA_DIR: pathlib.Path = PROJECT_DIR / "data" / "generated" / "clustered"
 
 
 # Experimental constants
@@ -117,7 +118,7 @@ def _do_run(
     )
 
     encoder: nn.Module = gtl.training.train_egi_encoder(
-        src_g,
+        Graph.from_dgl_graph(src_g),
         k=CONFIG["k"][model],
         lr=CONFIG["LR"],
         n_hidden_layers=CONFIG["hidden_layers"],
@@ -243,8 +244,8 @@ def _get_edge_embedding(emb, a, b):
 
 
 if __name__ == "__main__":
-    parser = add_wandb_options(ArgumentParser())
-    opts = parser.parse_args()
+    parser: ArgumentParser = add_wandb_options(ArgumentParser())
+    opts: Namespace = parser.parse_args()
     if opts.mode == None:
         opts.mode = "online"
     main(opts)

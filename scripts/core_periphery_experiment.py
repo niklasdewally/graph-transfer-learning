@@ -7,6 +7,7 @@ import pathlib
 import dgl
 import gtl.features
 import gtl.training
+from gtl import Graph
 import networkx as nx
 import torch
 import torch.nn as nn
@@ -25,10 +26,10 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # PATHS TO RESOURCES #
 ######################
 
-SCRIPT_DIR = pathlib.Path(__file__).parent.resolve()
-PROJECT_DIR = SCRIPT_DIR.parent.resolve()
-HYPERPARAMS_DIR = SCRIPT_DIR / "core_periphery_hyperparams"
-DATA_DIR = PROJECT_DIR / "data" / "generated" / "core_periphery"
+SCRIPT_DIR: pathlib.Path = pathlib.Path(__file__).parent.resolve()
+PROJECT_DIR: pathlib.Path = SCRIPT_DIR.parent.resolve()
+HYPERPARAMS_DIR: pathlib.Path = SCRIPT_DIR / "core_periphery_hyperparams"
+DATA_DIR: pathlib.Path = PROJECT_DIR / "data" / "generated" / "core-periphery"
 
 ################
 # WANDB CONFIG #
@@ -37,10 +38,10 @@ DATA_DIR = PROJECT_DIR / "data" / "generated" / "core_periphery"
 # default, model independent config
 # model specific config is loaded from .toml later
 default_config = {
-    "repeats_per_trial": 4,
+    "repeats_per_trial": 1,
 }
 
-current_date_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+current_date_time: str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 entity = "sta-graph-transfer-learning"
 project = "Core-Periphery Link Prediction"
 group = f"{current_date_time}"
@@ -99,17 +100,13 @@ def run() -> None:
     src_g_name = (
         f"{wandb.config.source_core_size}-{wandb.config.source_periphery_size}-0.gml"
     )
-    src_g: nx.Graph = nx.read_gml(DATA_DIR / src_g_name)
-    src_g: dgl.DGLGraph = dgl.from_networkx(src_g, node_attrs=["origin"])
-    src_g = src_g.to(device)
+    src_g: Graph = Graph(nx.read_gml(DATA_DIR / src_g_name))
 
     target_g_name = (
         f"{wandb.config.target_core_size}-{wandb.config.target_periphery_size}-1.gml"
     )
 
-    target_g: nx.Graph = nx.read_gml(DATA_DIR / target_g_name)
-    target_g: dgl.DGLGraph = dgl.from_networkx(target_g, node_attrs=["origin"])
-    target_g = target_g.to(device)
+    target_g: nx.Graph = Graph(nx.read_gml(DATA_DIR / target_g_name))
 
     wandb.config["target_graph_filename"] = target_g_name
     wandb.config["source_graph_filename"] = src_g_name
@@ -132,20 +129,20 @@ def run() -> None:
     )
 
     features: torch.Tensor = gtl.features.degree_bucketing(
-        src_g, model_params["hidden_layers"]
+        src_g.as_dgl_graph(), model_params["hidden_layers"]
     )
     features = features.to(device)
 
-    node_embeddings: torch.Tensor = encoder(src_g, features)
+    node_embeddings: torch.Tensor = encoder(src_g.as_dgl_graph(), features)
 
     # generate negative edges
     negative_us, negative_vs = global_uniform_negative_sampling(
-        src_g, (src_g.num_edges())
+        src_g.as_dgl_graph(), (src_g.as_dgl_graph().num_edges())
     )
 
     # get and shuffle positive edges
-    shuffle_mask = torch.randperm(src_g.num_edges())
-    us, vs = src_g.edges()
+    shuffle_mask = torch.randperm(src_g.as_dgl_graph().num_edges())
+    us, vs = src_g.as_dgl_graph().edges()
     us = us[shuffle_mask]
     vs = vs[shuffle_mask]
 
@@ -188,10 +185,10 @@ def run() -> None:
     # DIRECT TRANSFER TO TARGET #
     #############################
 
-    features = gtl.features.degree_bucketing(target_g, model_params["hidden_layers"])
+    features = gtl.features.degree_bucketing(target_g.as_dgl_graph(), model_params["hidden_layers"])
     features = features.to(device)
 
-    embs = encoder(target_g, features)
+    embs = encoder(target_g.as_dgl_graph(), features)
 
     # generate negative edges
     negative_us, negative_vs = global_uniform_negative_sampling(
@@ -199,8 +196,8 @@ def run() -> None:
     )
 
     # get and shuffle positive edges
-    shuffle_mask = torch.randperm(target_g.num_edges())
-    us, vs = target_g.edges()
+    shuffle_mask = torch.randperm(target_g.as_dgl_graph()num_edges())
+    us, vs = target_g.as_dgl_graph().edges()
     us = us[shuffle_mask]
     vs = vs[shuffle_mask]
 

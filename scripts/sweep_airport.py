@@ -32,12 +32,12 @@ from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import train_test_split
 
 # setup directorys to use for airport data
-SCRIPT_DIR = pathlib.Path(__file__).parent.resolve()
-PROJECT_DIR = SCRIPT_DIR.parent.resolve()
-DATA_DIR = PROJECT_DIR / "data" / "airports"
+SCRIPT_DIR: pathlib.Path = pathlib.Path(__file__).parent.resolve()
+PROJECT_DIR: pathlib.Path = SCRIPT_DIR.parent.resolve()
+DATA_DIR: pathlib.Path = PROJECT_DIR / "data" / "airports"
 
 # directory to store temporary model weights used while training
-TMP_DIR = tempfile.TemporaryDirectory()
+TMP_DIR: tempfile.TemporaryDirectory[str] = tempfile.TemporaryDirectory()
 
 config = {
     "batch_size": 50,
@@ -50,7 +50,7 @@ config = {
 }
 
 
-current_date_time = datetime.datetime.now().strftime("%Y-%m-%d (T%H%M)")
+current_date_time: str = datetime.datetime.now().strftime("%Y-%m-%d (T%H%M)")
 sweep_config = {
     "project": "Airport hyperparams sweep",
     "entity": "sta-graph-transfer-learning",
@@ -67,7 +67,7 @@ sweep_config = {
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def main():
+def main() -> None:
     # read model type from arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("model", choices=["egi", "triangle"])
@@ -82,7 +82,7 @@ def main():
     wandb.agent(sweep_id=sweep_id, function=train)
 
 
-def train():
+def train() -> None:
     # start a run, providing defaults that can be over-ridden by a sweep
     run = wandb.init(config=config)
 

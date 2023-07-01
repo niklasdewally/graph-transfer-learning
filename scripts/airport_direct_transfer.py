@@ -21,7 +21,7 @@ import datetime
 import itertools
 import pathlib
 import tempfile
-from argparse import ArgumentParser
+from argparse import Namespace, ArgumentParser
 from pathlib import Path
 from random import shuffle
 
@@ -33,23 +33,29 @@ import gtl.wandb
 import numpy as np
 import torch
 import torch.nn as nn
+
+# pyre-ignore[21]
 import wandb
 from gtl.cli import add_wandb_options
 from gtl.features import degree_bucketing
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import train_test_split
 from torch.profiler import ProfilerActivity, profile, record_function
+from numpy.typing import NDArray
+from gtl import Graph
+
+from typing import Any
 
 # setup directorys to use for airport data
-SCRIPT_DIR = pathlib.Path(__file__).parent.resolve()
-PROJECT_DIR = SCRIPT_DIR.parent.resolve()
-DATA_DIR = PROJECT_DIR / "data" / "airports"
+SCRIPT_DIR: pathlib.Path = pathlib.Path(__file__).parent.resolve()
+PROJECT_DIR: pathlib.Path = SCRIPT_DIR.parent.resolve()
+DATA_DIR: pathlib.Path = PROJECT_DIR / "data" / "airports"
 
 # directory to store temporary model weights used while training
-TMP_DIR = tempfile.TemporaryDirectory()
+TMP_DIR: tempfile.TemporaryDirectory[str] = tempfile.TemporaryDirectory()
 
 # some experimental constants
-CONFIG = {
+CONFIG: dict[str, Any] = {
     "batch_size": 50,
     "LR": 0.01,
     "hidden_layers": 32,
@@ -57,13 +63,50 @@ CONFIG = {
     "min_delta": 0.01,
     "epochs": 100,
     "n_runs": 10,
+    "source-dataset": "europe",
+    "target-dataset": "brazil",
 }
-
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def main(opts):
+def load_dataset(edgefile, labelfile) -> tuple[Graph, NDArray]:
+    edges = np.loadtxt(edgefile, dtype="int")
+    us = torch.from_numpy(edges[:, 0]).to(device)
+    vs = torch.from_numpy(edges[:, 1]).to(device)
+
+    dgl_graph: dgl.DGLGraph = dgl.graph((us, vs), device=torch.device("cpu"))
+    dgl_graph = dgl.to_bidirected(dgl_graph).to(device)
+
+    graph: Graph = gtl.Graph.from_dgl_graph(dgl_graph)
+    graph.mine_triangles()
+
+    labels = np.loadtxt(labelfile, skiprows=1)
+
+    return graph, labels[:, 1]
+
+
+europe_g : Graph
+europe_labels: NDArray
+
+brazil_g : Graph
+brazil_labels: NDArray
+
+europe_g, europe_labels = load_dataset(
+    f"{str(DATA_DIR)}/europe-airports.edgelist",
+    f"{str(DATA_DIR)}/labels-europe-airports.txt",
+)
+
+# usa_g, usa_labels = load_dataset('data/usa-airports.edgelist',
+#                                 'data/labels-usa-airports.txt')
+
+brazil_g, brazil_labels = load_dataset(
+    f"{str(DATA_DIR)}/brazil-airports.edgelist",
+    f"{str(DATA_DIR)}/labels-brazil-airports.txt",
+)
+
+
+def main(opts) -> None:
     models = ["egi", "triangle"]
     ks = [1, 2, 3, 4]
 
@@ -92,54 +135,22 @@ def main(opts):
                 mode=opts.mode,
             ) as run:
                 # add global config
-                wandb.config.update({"global_config": CONFIG})
+                wandb.config.update(CONFIG)
                 do_run(k, model)
 
 
-def load_dataset(edgefile, labelfile):
-    edges = np.loadtxt(edgefile, dtype="int")
-    us = torch.from_numpy(edges[:, 0]).to(device)
-    vs = torch.from_numpy(edges[:, 1]).to(device)
-
-    dgl_graph = dgl.graph((us, vs), device=torch.device("cpu"))
-    dgl_graph = dgl.to_bidirected(dgl_graph).to(device)
-
-    labels = np.loadtxt(labelfile, skiprows=1)
-
-    return dgl_graph, labels[:, 1]
-
-
-def do_run(k, sampler):
-    wandb.config.update({"source-dataset": "europe", "target-dataset": "brazil"})
-
-    ##########################################################################
-    #                            DATA LOADING                                #
-    ##########################################################################
-
-    europe_g, europe_labels = load_dataset(
-        f"{str(DATA_DIR)}/europe-airports.edgelist",
-        f"{str(DATA_DIR)}/labels-europe-airports.txt",
-    )
-
-    # usa_g, usa_labels = load_dataset('data/usa-airports.edgelist',
-    #                                 'data/labels-usa-airports.txt')
-
-    brazil_g, brazil_labels = load_dataset(
-        f"{str(DATA_DIR)}/brazil-airports.edgelist",
-        f"{str(DATA_DIR)}/labels-brazil-airports.txt",
-    )
-
+def do_run(k: int, sampler) -> None:
     # node features for encoder
-    europe_node_feats = degree_bucketing(europe_g, CONFIG["hidden_layers"]).to(device)
-    brazil_node_feats = degree_bucketing(brazil_g, CONFIG["hidden_layers"]).to(device)
+    europe_node_feats = degree_bucketing(
+        europe_g.as_dgl_graph(device), wandb.config["hidden_layers"]
+    ).to(device)
+    brazil_node_feats = degree_bucketing(
+        brazil_g.as_dgl_graph(device), wandb.config["hidden_layers"]
+    ).to(device)
 
     # save graph structural properties to wanb for analysis
-    gtl.wandb.log_network_properties(
-        europe_g.cpu().to_simple().to_networkx(), prefix="source"
-    )
-    gtl.wandb.log_network_properties(
-        brazil_g.cpu().to_simple().to_networkx(), prefix="target"
-    )
+    gtl.wandb.log_network_properties(europe_g.as_nx_graph(), prefix="source")
+    gtl.wandb.log_network_properties(brazil_g.as_nx_graph(), prefix="target")
 
     ##########################################################################
     #                     TRAIN SOURCE ENCODER (EUROPE)                      #
@@ -149,18 +160,23 @@ def do_run(k, sampler):
 
     encoder = gtl.training.train_egi_encoder(
         europe_g,
-        n_epochs=CONFIG["epochs"],
+        n_epochs=wandb.config["epochs"],
         k=k,
-        lr=CONFIG["LR"],
-        n_hidden_layers=CONFIG["hidden_layers"],
-        batch_size=CONFIG["batch_size"],
-        patience=CONFIG["patience"],
-        min_delta=CONFIG["min_delta"],
-        sampler=sampler,
+        lr=wandb.config["LR"],
+        n_hidden_layers=wandb.config["hidden_layers"],
+        batch_size=wandb.config["batch_size"],
+        patience=wandb.config["patience"],
+        min_delta=wandb.config["min_delta"],
+        sampler_type=sampler,
         save_weights_to=Path(TMP_DIR.name, "srcmodel.pt"),
     )
 
-    embs = encoder(europe_g, europe_node_feats).to(torch.device("cpu")).detach().numpy()
+    embs = (
+        encoder(europe_g.as_dgl_graph(device), europe_node_feats)
+        .to(torch.device("cpu"))
+        .detach()
+        .numpy()
+    )
 
     train_embs, val_embs, train_classes, val_classes = train_test_split(
         embs, europe_labels
@@ -179,9 +195,9 @@ def do_run(k, sampler):
 
     target_model = gtl.models.EGI(
         brazil_node_feats.shape[1],
-        CONFIG["hidden_layers"],
+        wandb.config["hidden_layers"],
         2,  # see gtl.training.egi
-        nn.PReLU(CONFIG["hidden_layers"]),
+        nn.PReLU(wandb.config["hidden_layers"]),
     ).to(device)
 
     target_model.load_state_dict(
@@ -191,7 +207,7 @@ def do_run(k, sampler):
     target_encoder = target_model.encoder
 
     target_embs = (
-        target_encoder(brazil_g, brazil_node_feats)
+        target_encoder(brazil_g.as_dgl_graph(device), brazil_node_feats)
         .to(torch.device("cpu"))
         .detach()
         .numpy()
@@ -223,8 +239,8 @@ def do_run(k, sampler):
 
 
 if __name__ == "__main__":
-    parser = add_wandb_options(ArgumentParser())
-    opts = parser.parse_args()
+    parser: ArgumentParser = add_wandb_options(ArgumentParser())
+    opts: Namespace = parser.parse_args()
     if opts.mode == None:
         opts.mode = "online"
     main(opts)

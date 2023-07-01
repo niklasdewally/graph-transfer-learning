@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from statistics import *
 
 
-def draw_twopart(G):
+def draw_twopart(G) -> None:
     fig = plt.figure()
     pos = nx.spring_layout(G)
     colour_map = [

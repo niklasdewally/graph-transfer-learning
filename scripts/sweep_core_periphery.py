@@ -3,7 +3,7 @@ import wandb
 import argparse
 from core_periphery_experiment import run, default_config
 
-current_date_time = datetime.datetime.now().strftime("%Y-%m-%d (T%H%M)")
+current_date_time: str = datetime.datetime.now().strftime("%Y-%m-%d (T%H%M)")
 entity = "sta-graph-transfer-learning"
 project = "Core-Periphery Link Prediction"
 
@@ -28,7 +28,7 @@ sweep_config = {
 }
 
 
-def main():
+def main() -> None:
     # read model type from arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("model", choices=["egi", "triangle"])
@@ -49,7 +49,7 @@ def main():
     wandb.agent(sweep_id=sweep_id, function=sweep_runner)
 
 
-def sweep_runner():
+def sweep_runner() -> None:
     wandb.init(config=default_config)
     acc = 0
     for i in range(wandb.config.sweep_n_runs):

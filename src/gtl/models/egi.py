@@ -445,7 +445,7 @@ class MLP(nn.Module):
             return self.linears[-1](h)
 
 
-def get_positive_expectation(p_samples, measure, average=True):
+def get_positive_expectation(p_samples, measure, average: bool=True):
     """Computes the positive part of a divergence / difference.
     Args:
         p_samples: Positive samples.
@@ -481,7 +481,7 @@ def get_positive_expectation(p_samples, measure, average=True):
         return Ep
 
 
-def get_negative_expectation(q_samples, measure, average=True):
+def get_negative_expectation(q_samples, measure, average: bool=True):
     """Computes the negative part of a divergence / difference.
     Args:
         q_samples: Negative samples.
