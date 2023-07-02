@@ -1,3 +1,6 @@
+import igraph
+import itertools
+from random import sample
 from copy import deepcopy
 from .typing import PathLike
 from typing import Optional
@@ -22,6 +25,7 @@ class Graph:
 
     def __init__(self, g: nx.Graph) -> None:
         self._G: nx.Graph = deepcopy(g)
+        self.triads_by_type: dict[str, list[nx.Graph]] | None = None
 
     @staticmethod
     def from_gml_file(path: PathLike) -> "Graph":
@@ -73,6 +77,8 @@ class Graph:
             triangle_nodes = sorted(x for j, x in enumerate(nodes) if j != i)
             self._G.nodes[current_node][TRIANGLES].append(triangle_nodes)
 
+            self._on_change()
+
     def remove_triangle(self, node1: int, node2: int, node3: int) -> None:
         nodes = [node1, node2, node3]
         for i, current_node in enumerate(nodes):
@@ -81,6 +87,8 @@ class Graph:
                 self._G.nodes[current_node][TRIANGLES].remove(triangle_nodes)
             except KeyError:
                 pass
+
+        self._on_change()
 
     def get_triangles(self, node: int) -> list[list[int]]:
         try:
@@ -98,6 +106,15 @@ class Graph:
             )
         return nx.get_node_attributes(self._G, TRIANGLES)
 
+    def get_triangles_list(self) -> list[list[int]]:
+        triangles = []
+        for k, v in self.get_triangles_dictionary().items():
+            for triangle in v:
+                triangle.append(k)
+                triangles.append(triangle)
+
+        return triangles
+
     def mine_triangles(self) -> None:
         self._reset_triangles()
         # https://stackoverflow.com/questions/1705824/finding-cycle-of-3-nodes-or-triangles-in-a-graph
@@ -111,6 +128,8 @@ class Graph:
             n1, n2, n3 = triangle
             self.add_triangle(n1, n2, n3)
 
+        self._on_change()
+
     def has_mined_triangles(self) -> bool:
         for node in self._G.nodes:
             if TRIANGLES not in self._G.nodes[node].keys():
@@ -120,6 +139,60 @@ class Graph:
 
         return True
 
+    def sample_triangles(self, n: int) -> list[list[int]]:
+        """
+        Sample n triangles from the graph.
+        If the graph contains less than n triangles, this returns all the triangles.
+        """
+        triangles = self.get_triangles_list()
+
+        return sample(triangles, min(len(triangles), n))
+
+    def sample_negative_triangles(self, n: int) -> list[list[int]]:
+        """
+        Sample n triangles that do not exist in the graph.
+
+        For any three nodes A B C, these include the triads:
+            * A, B, C
+            * A, B <-> C
+            * A <-> B <-> C
+
+        If there are less than n negative triangles, all the negative triangles found will be returned.
+
+
+        This function caches triad information once generated, so may be slow on first run, but faster subsequent times.
+        """
+
+        if self.triads_by_type is None:
+            self._generate_triads_by_type()
+
+        # pyre-ignore[16]
+        # A B C
+        disconnected_triads = [list(g) for g in self.triads_by_type["033"]]
+
+        # A -> B -> C
+        open_triangles = [list(g) for g in self.triads_by_type["201"]]
+
+        # A -> B , C
+        pair_and_node = [list(g) for g in self.triads_by_type["102"]]
+
+        all_non_triangles: list[list[int]] = list(
+            itertools.chain.from_iterable(
+                [disconnected_triads, open_triangles, pair_and_node]
+            )
+        )
+
+        return sample(all_non_triangles, min(len(all_non_triangles), n))
+
+    def _generate_triads_by_type(self) -> None:
+        self.triads_by_type = nx.triads_by_type(self._G.to_directed())
+
     def _reset_triangles(self) -> None:
         for node in self._G.nodes:
             self._G.nodes[node][TRIANGLES] = list()
+
+        self._on_change()
+
+    def _on_change(self) -> None:
+        # invalidate caches
+        self.triads_by_type = None

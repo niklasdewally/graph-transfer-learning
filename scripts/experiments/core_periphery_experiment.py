@@ -12,7 +12,8 @@ import networkx as nx
 import torch
 from gtl.cli import add_wandb_options
 from dgl.sampling import global_uniform_negative_sampling
-#pyre-ignore[21]:
+
+# pyre-ignore[21]:
 import wandb
 import tomllib
 
@@ -59,7 +60,6 @@ def main() -> None:
             for target_sizes in [(15, 100), (75, 500), (750, 5000)]:
                 source_core, source_periphery = source_sizes
                 target_core, target_periphery = target_sizes
-
                 for i in range(default_config["repeats_per_trial"]):
                     wandb.init(
                         project=project,
@@ -102,9 +102,7 @@ def run() -> None:
     )
     src_g: Graph = Graph(nx.read_gml(DATA_DIR / src_g_name))
 
-    target_g_name = (
-        f"{wandb.config.target_core_size}-{wandb.config.target_periphery_size}-1.gml"
-    )
+    target_g_name = ( f"{wandb.config.target_core_size}-{wandb.config.target_periphery_size}-1.gml")
 
     target_g: Graph = Graph(nx.read_gml(DATA_DIR / target_g_name))
 
@@ -185,7 +183,9 @@ def run() -> None:
     # DIRECT TRANSFER TO TARGET #
     #############################
 
-    features = gtl.features.degree_bucketing(target_g.as_dgl_graph(device), model_params["hidden_layers"])
+    features = gtl.features.degree_bucketing(
+        target_g.as_dgl_graph(device), model_params["hidden_layers"]
+    )
     features = features.to(device)
 
     embs = encoder(target_g.as_dgl_graph(device), features)
