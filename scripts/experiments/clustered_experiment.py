@@ -24,8 +24,7 @@ from gtl.clustered import get_filename
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import train_test_split
 
-SCRIPT_DIR: pathlib.Path = pathlib.Path(__file__).parent.resolve()
-PROJECT_DIR: pathlib.Path = SCRIPT_DIR.parent.resolve()
+PROJECT_DIR: pathlib.Path = pathlib.Path(__file__).parent.parent.parent.resolve()
 DATA_DIR: pathlib.Path = PROJECT_DIR / "data" / "generated" / "clustered"
 
 

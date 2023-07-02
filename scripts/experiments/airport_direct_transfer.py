@@ -46,8 +46,7 @@ from numpy.typing import NDArray
 from gtl import Graph
 
 # setup directorys to use for airport data
-SCRIPT_DIR: Path = pathlib.Path(__file__).parent.resolve()
-PROJECT_DIR: Path = SCRIPT_DIR.parent.resolve()
+PROJECT_DIR: Path = pathlib.Path(__file__).parent.parent.parent.resolve()
 DATA_DIR: Path = PROJECT_DIR / "data" / "airports"
 
 # directory to store temporary model weights used while training
