@@ -19,7 +19,7 @@ from gtl.two_part import join_core_periphery, two_part_graph_generator
 # to be later overwritten by command arguments
 config : MutableMapping = {
     "sizes": [(75, 500), (15, 100), (750, 5000)],
-    "number_of_repeats": 10,
+    "number_of_repeats": 3,
     "core_mean_degree": 9,
     "core_mean_triangles": 35,
     "periphery_mean_degree": 3,

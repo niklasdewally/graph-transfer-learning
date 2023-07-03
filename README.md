@@ -44,7 +44,12 @@ The repository on your local system will be mounted to the `/workspace/` folder 
 
 ## Poetry
 
-After installing `poetry`, run `poetry shell` to enter the project environment.
+After installing `poetry`, 
+
+* Run `poetry install --with cpu --without cuda`, or `poetry install --with cuda --without cpu`.
+* Enter the project environment with `poetry shell`
+
+
 
 # Usage
 

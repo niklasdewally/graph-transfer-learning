@@ -21,8 +21,8 @@ generate-data: data/generated/core-periphery data/generated/clustered
 clean:
 	rm -rf data/generated/*
 
-## Generate negative samples for triangle detection tasks
 .PHONY: prepare-triangle-detection
+## Generate negative samples for triangle detection tasks
 prepare-triangle-detection: data/processed/core-periphery
 #################################################################################
 # RULES                                                                         #
@@ -36,7 +36,7 @@ data/generated/clustered: scripts/generate-data/generate_clustered_dataset.py
 
 data/processed/core-periphery: scripts/pre-processing/negative-triangles.py data/generated/core-periphery
 	mkdir -p $@
-	$(PYTHON) $< $@ $(word 2,$^) 
+	$(PYTHON) $^ $@
 #################################################################################
 # Self Documenting Commands                                                     #
 #################################################################################

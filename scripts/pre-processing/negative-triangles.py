@@ -31,12 +31,13 @@ def main() -> None:
     
     # do this in single thread only due to high memory usage
     for path in src_dir.glob("*.gml"):
+        print(path)
         filename: str = path.stem
         destination: Path = Path(f"{filename}-negative-triangles.json")
 
         g = Graph.from_gml_file(path)
         sample = g.sample_negative_triangles(len(g.get_triangles_list()))
-        with open(destination,"wr") as f:
+        with open(destination,"w") as f:
             json.dump(sample,f)
 
 
