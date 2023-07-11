@@ -1,4 +1,3 @@
-import igraph
 import itertools
 from random import sample
 from copy import deepcopy
@@ -7,6 +6,7 @@ from typing import Optional
 from collections.abc import Mapping
 import torch
 
+from IPython import embed
 import dgl
 import networkx as nx
 from networkx.readwrite.gml import literal_destringizer, literal_stringizer
@@ -79,17 +79,35 @@ class Graph:
 
             self._on_change()
 
+    def copy(self) -> "Graph":
+        new_g: nx.Graph = self._G.copy()
+        return Graph(new_g)
+
     def remove_triangle(self, node1: int, node2: int, node3: int) -> None:
         nodes = [node1, node2, node3]
+        triangle_exists = False
         for i, current_node in enumerate(nodes):
             try:
                 triangle_nodes = sorted(x for j, x in enumerate(nodes) if j != i)
+                # remove from metadata
                 self._G.nodes[current_node][TRIANGLES].remove(triangle_nodes)
+
+                triangle_exists = True
             except KeyError:
                 pass
 
-        self._on_change()
+        if not triangle_exists:
+            #triangle never existed, so dont remove the edges
+            return 
 
+        for u,v in itertools.permutations(nodes,2):
+            try:
+                self._G.remove_edge(u, v)
+            except nx.NetworkXError:
+                pass
+
+
+        self._on_change()
     def get_triangles(self, node: int) -> list[list[int]]:
         try:
             if not isinstance(self._G.nodes[node][TRIANGLES], list):
@@ -114,6 +132,77 @@ class Graph:
                 triangles.append(triangle)
 
         return triangles
+
+    def edge_subgraph(self,edges: list[tuple[int,int]]) -> "Graph":
+        """
+        Create a subgraph based on edges.
+
+        Nodes are reindexed from 0 - old ids are stored in the "old_id" node attribute
+        of the underlying networkx graph.
+        """
+        new_g : nx.Graph = self._G.edge_subgraph(edges).to_undirected().to_directed().copy()
+        
+        # delete triangles that no longer exist
+        for nid in new_g:
+            triangles = new_g.nodes[nid][TRIANGLES]
+            for i,triangle in enumerate(list(triangles)):
+                if not all(x in new_g.nodes for x in triangle):
+                    triangles.remove(triangle)
+            new_g.nodes[nid][TRIANGLES] = triangles
+
+
+        # reindex nodes and triangles to be sequential
+        new_g = nx.convert_node_labels_to_integers(new_g,label_attribute="old_id")
+
+        # make map of old ids -> new ids
+        # then, use this to relabel ids of triangles
+
+        mapping = {v:k for k,v in nx.get_node_attributes(new_g,"old_id").items()}
+        for nid in new_g:
+            triangles = new_g.nodes[nid][TRIANGLES]
+            new_triangles = []
+            for triangle in triangles:
+                new_triangles.append([mapping[x] for x in triangle])
+
+            new_g.nodes[nid][TRIANGLES] = new_triangles
+
+        return Graph(new_g)
+
+
+    def node_subgraph(self, nodes:list[int]) -> "Graph":
+        """
+        Create a subgraph based on nodes.
+
+        Nodes are reindexed from 0 - old ids are stored in the "old_id" node attribute
+        of the underlying networkx graph.
+        """
+        new_g : nx.Graph = self._G.subgraph(nodes).to_undirected().to_directed().copy()
+        
+        # delete triangles that no longer exist
+        for nid in new_g:
+            triangles = new_g.nodes[nid][TRIANGLES]
+            for i,triangle in enumerate(list(triangles)):
+                if not all(x in new_g.nodes for x in triangle):
+                    triangles.remove(triangle)
+            new_g.nodes[nid][TRIANGLES] = triangles
+
+
+        # reindex nodes and triangles to be sequential
+        new_g = nx.convert_node_labels_to_integers(new_g,label_attribute="old_id")
+
+        # make map of old ids -> new ids
+        # then, use this to relabel ids of triangles
+
+        mapping = {v:k for k,v in nx.get_node_attributes(new_g,"old_id").items()}
+        for nid in new_g:
+            triangles = new_g.nodes[nid][TRIANGLES]
+            new_triangles = []
+            for triangle in triangles:
+                new_triangles.append([mapping[x] for x in triangle])
+
+            new_g.nodes[nid][TRIANGLES] = new_triangles
+
+        return Graph(new_g)
 
     def mine_triangles(self) -> None:
         self._reset_triangles()

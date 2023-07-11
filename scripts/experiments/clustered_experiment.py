@@ -1,46 +1,47 @@
 import datetime
 import itertools
 import pathlib
-import sys
 from argparse import ArgumentParser, Namespace
-from random import shuffle
 from collections.abc import MutableMapping
+from random import shuffle
 
-import dgl
 import gtl.features
 import gtl.training
-import networkx as nx
-import numpy as np
 import torch
-from numpy.typing import NDArray
-
-
-# pyre-ignore[21]:
-import wandb
 from dgl.sampling import global_uniform_negative_sampling
 from gtl import Graph
 from gtl.cli import add_wandb_options
-from gtl.clustered import get_filename
+from gtl.splits import LinkPredictionSplit
 from sklearn.linear_model import SGDClassifier
-from sklearn.model_selection import train_test_split
+
+# pyre-ignore[21]:
+import wandb
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+######################
+# PATHS TO RESOURCES #
+######################
 
 PROJECT_DIR: pathlib.Path = pathlib.Path(__file__).parent.parent.parent.resolve()
 DATA_DIR: pathlib.Path = PROJECT_DIR / "data" / "generated" / "clustered"
 
+################
+# WANDB CONFIG #
+################
 
 # Experimental constants
-CONFIG: MutableMapping = {
+default_config: MutableMapping = {
     "batch_size": 50,
     "LR": 0.01,
-    "hidden_layers": 32,
+    "hidden-layers": 32,
     "patience": 10,
-    "min_delta": 0.01,
+    "min-delta": 0.01,
     "epochs": 100,
     "k": {"triangle": 4, "egi": 3},
-    "n_runs": 20,
+    "n-runs": 1,
 }
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Parameters to sweep
 GRAPH_TYPES = ["powerlaw"]
@@ -49,21 +50,6 @@ MODELS = ["triangle", "egi"]
 # (soruce graph size, target graph size)
 # for fewshot learning (train on small, test on large)
 SIZES = [(100, 1000), (100, 100), (1000, 1000)]
-
-
-def _load_edgelist(path: pathlib.Path | str) -> dgl.DGLGraph:
-    if not pathlib.Path(path).is_file():
-        print(
-            f"File {path} does not exist - generate the dataset before running this script!"
-        )
-        sys.exit(1)
-
-    g: dgl.DGLGraph = dgl.from_networkx(nx.read_edgelist(path)).to(device)
-
-    return g
-
-
-# DATASETS
 
 
 def main(opts: Namespace) -> None:
@@ -81,81 +67,83 @@ def main(opts: Namespace) -> None:
             src_name = "clustered" if src else "unclustered"
             target_name = "clustered" if target else "unclustered"
 
-            for i in range(CONFIG["n_runs"]):
+            for i in range(default_config["n-runs"]):
                 wandb.init(
                     mode=opts.mode,
                     project="Clustered Transfer",
                     name=f"{model}-{graph_type}-{src_name}-{src_size}-{target_name}-{target_size}-{i}",
                     entity="sta-graph-transfer-learning",
                     group=f"Run {current_date_time}",
-                    config={
+                    config=default_config,
+                )
+
+                wandb.config.update(
+                    {
                         "model": model,
-                        "graph_type": graph_type,
+                        "graph-type": graph_type,
                         "src": src_name,
                         "target": target_name,
                         "src-size": src_size,
                         "target-size": target_size,
-                        "global_config": CONFIG,
-                    },
+                    }
                 )
 
-                try:
-                    _do_run(model, graph_type, src, target, src_size, target_size)
-                except Exception:
-                    # report run as failed
-                    wandb.finish(exit_code=1)
-                    i -= 1
+                do_run()
                 wandb.finish()
 
 
-def _do_run(
-    model: str,
-    graph_type: str,
-    src: bool,
-    target: bool,
-    src_size: int,
-    target_size: int,
-) -> None:
-    src_g: dgl.DGLGraph = _load_edgelist(
-        DATA_DIR / get_filename(graph_type, src, src_size, 0)
+def do_run() -> None:
+    src_g: Graph = Graph.from_gml_file(
+        DATA_DIR
+        / f"{wandb.config['graph-type']}-{wandb.config['src']}-{wandb.config['src-size']}-{0}.gml"
     )
-    target_g: dgl.DGLGraph = _load_edgelist(
-        DATA_DIR / get_filename(graph_type, target, target_size, 1)
+    src_split = LinkPredictionSplit(src_g)
+
+    target_g: Graph = Graph.from_gml_file(
+        DATA_DIR
+        / f"{wandb.config['graph-type']}-{wandb.config['target']}-{wandb.config['target-size']}-{0}.gml"
     )
+    target_split = LinkPredictionSplit(target_g)
 
     encoder = gtl.training.train_egi_encoder(
-        Graph.from_dgl_graph(src_g),
-        k=CONFIG["k"][model],
-        lr=CONFIG["LR"],
-        n_hidden_layers=CONFIG["hidden_layers"],
-        sampler_type=model,
+        graph=src_split.mp_graph,
+        k=wandb.config["k"][wandb.config["model"]],
+        lr=wandb.config["LR"],
+        n_hidden_layers=wandb.config["hidden-layers"],
+        sampler_type=wandb.config["model"],
         save_weights_to="pretrain.pt",
-        patience=CONFIG["patience"],
-        min_delta=CONFIG["min_delta"],
-        n_epochs=CONFIG["epochs"],
+        patience=wandb.config["patience"],
+        min_delta=wandb.config["min-delta"],
+        n_epochs=wandb.config["epochs"],
     )
+
+    # Generate negative and positive edge samples for training.
+    # #########################################################
 
     features: torch.Tensor = gtl.features.degree_bucketing(
-        src_g, CONFIG["hidden_layers"]
-    )
-    features = features.to(device)
+        src_split.full_training_graph.as_dgl_graph(device),
+        wandb.config["hidden-layers"],
+    ).to(device)
 
-    embs = encoder(src_g, features)
+    embs = encoder(src_split.full_training_graph.as_dgl_graph(device), features)
 
-    # generate negative edges
     negative_us, negative_vs = global_uniform_negative_sampling(
-        src_g, (src_g.num_edges())
+        src_split.full_training_graph.as_dgl_graph(device), (len(src_split.train_edges))
     )
 
-    # get and shuffle positive edges
-    shuffle_mask = torch.randperm(src_g.num_edges())
-    us, vs = src_g.edges()
-    us = us[shuffle_mask]
-    vs = vs[shuffle_mask]
+    shuffle_mask = torch.randperm(len(src_split.train_edges))
+
+    us: torch.Tensor = torch.tensor(
+        [u for u, v in src_split.train_edges], device=device
+    )[shuffle_mask]
+    vs: torch.Tensor = torch.tensor(
+        [v for u, v in src_split.train_edges], device=device
+    )[shuffle_mask]
 
     # convert into node embeddings
     us = embs[us]
     vs = embs[vs]
+
     negative_us = embs[negative_us]
     negative_vs = embs[negative_vs]
 
@@ -163,27 +151,73 @@ def _do_run(
     positive_edges = us * vs
     negative_edges = negative_us * negative_vs
 
+    # Create classes for classification
     positive_values = torch.ones(positive_edges.shape[0])
     negative_values = torch.zeros(negative_edges.shape[0])
 
-    # create shuffled edge and value list
-    edges = torch.cat((positive_edges, negative_edges), 0)
-    values = torch.cat((positive_values, negative_values), 0)
+    # create shuffled edge and class list
+    train_edges = torch.cat((positive_edges, negative_edges), 0)
+    train_classes = torch.cat((positive_values, negative_values), 0)
 
-    shuffle_mask = torch.randperm(edges.shape[0])
-    edges = edges[shuffle_mask]
-    values = values[shuffle_mask]
-    # embed()
+    shuffle_mask = torch.randperm(train_edges.shape[0])
+    train_edges = train_edges[shuffle_mask]
+    train_classes = train_classes[shuffle_mask]
 
-    # convert to lists for training
-    # TODO: train on gpu using pytorch
-
-    train_edges, val_edges, train_classes, val_classes = train_test_split(edges, values)
+    # Train link predictor!!
+    #########################
 
     classifier = SGDClassifier(max_iter=1000)
     classifier = classifier.fit(
         train_edges.detach().cpu(), train_classes.detach().cpu()
     )
+
+    # Generate negative and positive edge samples for validation.
+    # ###########################################################
+
+    features: torch.Tensor = gtl.features.degree_bucketing(
+        src_split.graph.as_dgl_graph(device), wandb.config["hidden-layers"]
+    ).to(device)
+
+    embs = encoder(src_split.graph.as_dgl_graph(device), features)
+
+    negative_us, negative_vs = global_uniform_negative_sampling(
+        src_split.graph.as_dgl_graph(device), (len(src_split.val_edges))
+    )
+
+    shuffle_mask = torch.randperm(len(src_split.val_edges))
+
+    us: torch.Tensor = torch.tensor([u for u, v in src_split.val_edges], device=device)[
+        shuffle_mask
+    ]
+    vs: torch.Tensor = torch.tensor([v for u, v in src_split.val_edges], device=device)[
+        shuffle_mask
+    ]
+
+    # convert into node embeddings
+    us = embs[us]
+    vs = embs[vs]
+
+    negative_us = embs[negative_us]
+    negative_vs = embs[negative_vs]
+
+    # convert into edge embeddings
+    positive_edges = us * vs
+    negative_edges = negative_us * negative_vs
+
+    # Create classes for classification
+    positive_values = torch.ones(positive_edges.shape[0])
+    negative_values = torch.zeros(negative_edges.shape[0])
+
+    # create shuffled edge and class list
+    val_edges = torch.cat((positive_edges, negative_edges), 0)
+    val_classes = torch.cat((positive_values, negative_values), 0)
+
+    shuffle_mask = torch.randperm(val_edges.shape[0])
+    val_edges = val_edges[shuffle_mask]
+    val_classes = val_classes[shuffle_mask]
+
+    # Validate
+    ###########
 
     score = classifier.score(val_edges.detach().cpu(), val_classes.detach().cpu())
 
@@ -193,25 +227,33 @@ def _do_run(
     # Direct transfer of embeddings #
     #################################
 
-    features = gtl.features.degree_bucketing(target_g, CONFIG["hidden_layers"])
-    features = features.to(device)
+    # Generate negative and positive edge samples for training.
+    # #########################################################
 
-    embs = encoder(target_g, features)
+    features: torch.Tensor = gtl.features.degree_bucketing(
+        target_split.full_training_graph.as_dgl_graph(device),
+        wandb.config["hidden-layers"],
+    ).to(device)
 
-    # generate negative edges
+    embs = encoder(target_split.full_training_graph.as_dgl_graph(device), features)
+
     negative_us, negative_vs = global_uniform_negative_sampling(
-        target_g, (target_g.num_edges())
+        target_split.full_training_graph.as_dgl_graph(device), (len(target_split.train_edges))
     )
 
-    # get and shuffle positive edges
-    shuffle_mask = torch.randperm(target_g.num_edges())
-    us, vs = target_g.edges()
-    us = us[shuffle_mask]
-    vs = vs[shuffle_mask]
+    shuffle_mask = torch.randperm(len(target_split.train_edges))
+
+    us: torch.Tensor = torch.tensor(
+        [u for u, v in target_split.train_edges], device=device
+    )[shuffle_mask]
+    vs: torch.Tensor = torch.tensor(
+        [v for u, v in target_split.train_edges], device=device
+    )[shuffle_mask]
 
     # convert into node embeddings
     us = embs[us]
     vs = embs[vs]
+
     negative_us = embs[negative_us]
     negative_vs = embs[negative_vs]
 
@@ -219,34 +261,77 @@ def _do_run(
     positive_edges = us * vs
     negative_edges = negative_us * negative_vs
 
+    # Create classes for classification
     positive_values = torch.ones(positive_edges.shape[0])
     negative_values = torch.zeros(negative_edges.shape[0])
 
-    # create shuffled edge and value list
-    edges = torch.cat((positive_edges, negative_edges), 0)
-    values = torch.cat((positive_values, negative_values), 0)
+    # create shuffled edge and class list
+    train_edges = torch.cat((positive_edges, negative_edges), 0)
+    train_classes = torch.cat((positive_values, negative_values), 0)
 
-    shuffle_mask = torch.randperm(edges.shape[0])
-    edges = edges[shuffle_mask]
-    values = values[shuffle_mask]
+    shuffle_mask = torch.randperm(train_edges.shape[0])
+    train_edges = train_edges[shuffle_mask]
+    train_classes = train_classes[shuffle_mask]
 
-    # convert to lists for training
-    # TODO: train on gpu using pytorch
-
-    train_edges, val_edges, train_classes, val_classes = train_test_split(edges, values)
+    # Train link predictor.
+    #########################
 
     classifier = SGDClassifier(max_iter=1000)
     classifier = classifier.fit(
         train_edges.detach().cpu(), train_classes.detach().cpu()
     )
 
+    # Generate negative and positive edge samples for validation.
+    # ###########################################################
+
+    features: torch.Tensor = gtl.features.degree_bucketing(
+        target_split.graph.as_dgl_graph(device), wandb.config["hidden-layers"]
+    ).to(device)
+
+    embs = encoder(target_split.graph.as_dgl_graph(device), features)
+
+    negative_us, negative_vs = global_uniform_negative_sampling(
+        target_split.graph.as_dgl_graph(device), (len(target_split.val_edges))
+    )
+
+    shuffle_mask = torch.randperm(len(target_split.val_edges))
+
+    us: torch.Tensor = torch.tensor(
+        [u for u, v in target_split.val_edges], device=device
+    )[shuffle_mask]
+    vs: torch.Tensor = torch.tensor(
+        [v for u, v in target_split.val_edges], device=device
+    )[shuffle_mask]
+
+    # convert into node embeddings
+    us = embs[us]
+    vs = embs[vs]
+
+    negative_us = embs[negative_us]
+    negative_vs = embs[negative_vs]
+
+    # convert into edge embeddings
+    positive_edges = us * vs
+    negative_edges = negative_us * negative_vs
+
+    # Create classes for classification
+    positive_values = torch.ones(positive_edges.shape[0])
+    negative_values = torch.zeros(negative_edges.shape[0])
+
+    # create shuffled edge and class list
+    val_edges = torch.cat((positive_edges, negative_edges), 0)
+    val_classes = torch.cat((positive_values, negative_values), 0)
+
+    shuffle_mask = torch.randperm(val_edges.shape[0])
+    val_edges = val_edges[shuffle_mask]
+    val_classes = val_classes[shuffle_mask]
+
+    # Validate
+    ###########
+
     score = classifier.score(val_edges.detach().cpu(), val_classes.detach().cpu())
 
     wandb.summary["target-accuracy"] = score
-
-
-def _get_edge_embedding(emb: torch.Tensor, a: torch.Tensor, b: torch.Tensor) -> NDArray:
-    return np.multiply(emb[a].detach().cpu(), emb[b].detach().cpu())
 
 
 if __name__ == "__main__":

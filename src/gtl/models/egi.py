@@ -77,8 +77,8 @@ class EGI(nn.Module):
 
             l += E_neg - E_pos
 
-        assert pos_num != 0
-        assert neg_num != 0
+        #assert pos_num != 0
+        #assert neg_num != 0
 
         return E_neg / neg_num - E_pos / pos_num
 

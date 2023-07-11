@@ -1,27 +1,28 @@
 import argparse
 import datetime
-from sklearn.linear_model import SGDClassifier
-from sklearn.model_selection import train_test_split
 import pathlib
-
+import random
 from collections.abc import MutableMapping
+from pprint import pprint
+
 import gtl.features
 import gtl.training
-from gtl import Graph
-import networkx as nx
+import tomllib
 import torch
-from gtl.cli import add_wandb_options
 from dgl.sampling import global_uniform_negative_sampling
+from gtl import Graph
+from gtl.cli import add_wandb_options
+from gtl.splits import LinkPredictionSplit
+from sklearn.linear_model import SGDClassifier
 
 # pyre-ignore[21]:
 import wandb
-import tomllib
-
-from pprint import pprint
-
 
 # auto-select device to run pytorch models on
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+torch.manual_seed(0)
+random.seed(0)
 
 ######################
 # PATHS TO RESOURCES #
@@ -39,7 +40,7 @@ DATA_DIR: pathlib.Path = PROJECT_DIR / "data" / "generated" / "core-periphery"
 # default, model independent config
 # model specific config is loaded from .toml later
 default_config: MutableMapping = {
-    "repeats_per_trial": 1,
+    "repeats_per_trial": 10,
 }
 
 current_date_time: str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -100,11 +101,15 @@ def run() -> None:
     src_g_name = (
         f"{wandb.config.source_core_size}-{wandb.config.source_periphery_size}-0.gml"
     )
-    src_g: Graph = Graph(nx.read_gml(DATA_DIR / src_g_name))
+    src_g: Graph = Graph.from_gml_file(DATA_DIR / src_g_name)
+    src_split: LinkPredictionSplit = LinkPredictionSplit(src_g)
 
-    target_g_name = ( f"{wandb.config.target_core_size}-{wandb.config.target_periphery_size}-1.gml")
+    target_g_name = (
+        f"{wandb.config.target_core_size}-{wandb.config.target_periphery_size}-1.gml"
+    )
 
-    target_g: Graph = Graph(nx.read_gml(DATA_DIR / target_g_name))
+    target_g: Graph = Graph.from_gml_file(DATA_DIR / target_g_name)
+    target_split: LinkPredictionSplit = LinkPredictionSplit(target_g)
 
     wandb.config["target_graph_filename"] = target_g_name
     wandb.config["source_graph_filename"] = src_g_name
@@ -116,7 +121,7 @@ def run() -> None:
     model_params = wandb.config
 
     encoder = gtl.training.train_egi_encoder(
-        src_g,
+        src_split.mp_graph,
         k=model_params["k"],
         lr=model_params["lr"],
         n_hidden_layers=model_params["hidden_layers"],
@@ -127,26 +132,38 @@ def run() -> None:
     )
 
     features: torch.Tensor = gtl.features.degree_bucketing(
-        src_g.as_dgl_graph(device), model_params["hidden_layers"]
+        src_split.full_training_graph.as_dgl_graph(device),
+        model_params["hidden_layers"],
     )
     features = features.to(device)
 
-    node_embeddings: torch.Tensor = encoder(src_g.as_dgl_graph(device), features)
+    node_embeddings: torch.Tensor = encoder(
+        src_split.full_training_graph.as_dgl_graph(device), features
+    )
 
     # generate negative edges
+
+    # use val_mp_graph as we want to check that the edge neither exists in the message_passing set and the supervision set
     negative_us, negative_vs = global_uniform_negative_sampling(
-        src_g.as_dgl_graph(device), (src_g.as_dgl_graph(device).num_edges())
+        src_split.full_training_graph.as_dgl_graph(device), (len(src_split.train_edges))
     )
 
     # get and shuffle positive edges
-    shuffle_mask = torch.randperm(src_g.as_dgl_graph(device).num_edges())
-    us, vs = src_g.as_dgl_graph(device).edges()
+    us: torch.Tensor = torch.tensor(
+        [u for u, v in src_split.train_edges], device=device
+    )
+    vs: torch.Tensor = torch.tensor(
+        [v for u, v in src_split.train_edges], device=device
+    )
+
+    shuffle_mask = torch.randperm(len(src_split.train_edges))
     us = us[shuffle_mask]
     vs = vs[shuffle_mask]
 
     # convert into node embeddings
     us = node_embeddings[us]
     vs = node_embeddings[vs]
+
     negative_us = node_embeddings[negative_us]
     negative_vs = node_embeddings[negative_vs]
 
@@ -164,18 +181,62 @@ def run() -> None:
     shuffle_mask = torch.randperm(edges.shape[0])
     edges = edges[shuffle_mask]
     values = values[shuffle_mask]
-    # embed()
 
     # Train link predictor
 
-    train_edges, val_edges, train_classes, val_classes = train_test_split(edges, values)
-
     classifier = SGDClassifier(max_iter=1000)
-    classifier = classifier.fit(
-        train_edges.detach().cpu(), train_classes.detach().cpu()
+    classifier = classifier.fit(edges.detach().cpu(), values.detach().cpu())
+
+    # Validate link predictor
+    # Same as above, but using val_mp_graph and val_edges / val_graph
+
+    features: torch.Tensor = gtl.features.degree_bucketing(
+        src_split.graph.as_dgl_graph(device), model_params["hidden_layers"]
+    )
+    features = features.to(device)
+
+    node_embeddings: torch.Tensor = encoder(
+        src_split.graph.as_dgl_graph(device), features
     )
 
-    score = classifier.score(val_edges.detach().cpu(), val_classes.detach().cpu())
+    # generate negative edges
+
+    # this time, we must ensure that the edge does not exist in the entire graph
+    negative_us, negative_vs = global_uniform_negative_sampling(
+        src_split.graph.as_dgl_graph(device), (len(src_split.val_edges))
+    )
+
+    # get and shuffle positive edges
+    us: torch.Tensor = torch.tensor([u for u, v in src_split.val_edges], device=device)
+    vs: torch.Tensor = torch.tensor([v for u, v in src_split.val_edges], device=device)
+
+    # convert into node embeddings
+    us = node_embeddings[us]
+    vs = node_embeddings[vs]
+
+    shuffle_mask = torch.randperm(len(src_split.val_edges))
+    us = us[shuffle_mask]
+    vs = vs[shuffle_mask]
+
+    negative_us = node_embeddings[negative_us]
+    negative_vs = node_embeddings[negative_vs]
+
+    # convert into edge embeddings
+    positive_edges = us * vs
+    negative_edges = negative_us * negative_vs
+
+    positive_values = torch.ones(positive_edges.shape[0])
+    negative_values = torch.zeros(negative_edges.shape[0])
+
+    # create shuffled edge and value list
+    edges = torch.cat((positive_edges, negative_edges), 0)
+    values = torch.cat((positive_values, negative_values), 0)
+
+    shuffle_mask = torch.randperm(edges.shape[0])
+    edges = edges[shuffle_mask]
+    values = values[shuffle_mask]
+
+    score = classifier.score(edges.detach().cpu(), values.detach().cpu())
 
     wandb.summary["source-accuracy"] = score
 
@@ -184,20 +245,29 @@ def run() -> None:
     #############################
 
     features = gtl.features.degree_bucketing(
-        target_g.as_dgl_graph(device), model_params["hidden_layers"]
+        target_split.full_training_graph.as_dgl_graph(device),
+        model_params["hidden_layers"],
     )
     features = features.to(device)
 
-    embs = encoder(target_g.as_dgl_graph(device), features)
+    embs = encoder(target_split.full_training_graph.as_dgl_graph(device), features)
+
+    # Train link predictor
 
     # generate negative edges
     negative_us, negative_vs = global_uniform_negative_sampling(
-        target_g, (target_g.as_dgl_graph(device).num_edges())
+        target_split.full_training_graph.as_dgl_graph(device),
+        (len(target_split.train_edges)),
     )
 
     # get and shuffle positive edges
-    shuffle_mask = torch.randperm(target_g.as_dgl_graph(device).num_edges())
-    us, vs = target_g.as_dgl_graph(device).edges()
+    shuffle_mask = torch.randperm(len(target_split.train_edges))
+    us: torch.Tensor = torch.tensor(
+        [u for u, v in target_split.train_edges], device=device
+    )
+    vs: torch.Tensor = torch.tensor(
+        [v for u, v in target_split.train_edges], device=device
+    )
     us = us[shuffle_mask]
     vs = vs[shuffle_mask]
 
@@ -222,17 +292,61 @@ def run() -> None:
     edges = edges[shuffle_mask]
     values = values[shuffle_mask]
 
-    # convert to lists for training
-    # TODO: train on gpu using pytorch
-
-    train_edges, val_edges, train_classes, val_classes = train_test_split(edges, values)
-
     classifier = SGDClassifier(max_iter=1000)
-    classifier = classifier.fit(
-        train_edges.detach().cpu(), train_classes.detach().cpu()
+    classifier = classifier.fit(edges.detach().cpu(), values.detach().cpu())
+
+    # Validate link predictor
+    features: torch.Tensor = gtl.features.degree_bucketing(
+        target_split.graph.as_dgl_graph(device), model_params["hidden_layers"]
+    )
+    features = features.to(device)
+
+    node_embeddings: torch.Tensor = encoder(
+        target_split.graph.as_dgl_graph(device), features
     )
 
-    score = classifier.score(val_edges.detach().cpu(), val_classes.detach().cpu())
+    # generate negative edges
+
+    # this time, we must ensure that the edge does not exist in the entire graph
+    negative_us, negative_vs = global_uniform_negative_sampling(
+        target_split.graph.as_dgl_graph(device), (len(target_split.val_edges))
+    )
+
+    # get and shuffle positive edges
+    us: torch.Tensor = torch.tensor(
+        [u for u, v in target_split.val_edges], device=device
+    )
+    vs: torch.Tensor = torch.tensor(
+        [v for u, v in target_split.val_edges], device=device
+    )
+
+    shuffle_mask = torch.randperm(len(target_split.val_edges))
+    us = us[shuffle_mask]
+    vs = vs[shuffle_mask]
+
+    # convert into node embeddings
+    us = node_embeddings[us]
+    vs = node_embeddings[vs]
+
+    negative_us = node_embeddings[negative_us]
+    negative_vs = node_embeddings[negative_vs]
+
+    # convert into edge embeddings
+    positive_edges = us * vs
+    negative_edges = negative_us * negative_vs
+
+    positive_values = torch.ones(positive_edges.shape[0])
+    negative_values = torch.zeros(negative_edges.shape[0])
+
+    # create shuffled edge and value list
+    edges = torch.cat((positive_edges, negative_edges), 0)
+    values = torch.cat((positive_values, negative_values), 0)
+
+    shuffle_mask = torch.randperm(edges.shape[0])
+    edges = edges[shuffle_mask]
+    values = values[shuffle_mask]
+
+    score = classifier.score(edges.detach().cpu(), values.detach().cpu())
 
     wandb.summary["target-accuracy"] = score
 

@@ -15,4 +15,4 @@ def get_filename(
     """
 
     clustered_str = "clustered" if is_clustered else "unclustered"
-    return f"{graph_type}-{clustered_str}-{size}-{i}.edgelist"
+    return f"{graph_type}-{clustered_str}-{size}-{i}.gml"

@@ -2,6 +2,7 @@ import dgl
 import torch
 from dgl.dataloading import Sampler
 
+from IPython import embed
 from random import sample
 
 __all__ = ["KHopTriangleSampler"]
@@ -62,8 +63,9 @@ class KHopTriangleSampler(Sampler):
             # [1,2,3,4,...]
             sampled_nodes = torch.flatten(sampled_triangles).unique()
             new_edges = self.g.edge_ids(
-                nid_tensor.repeat(sampled_nodes.shape[0]), sampled_nodes
-            )
+                torch.tensor([nid],device=self.g.device).repeat(sampled_nodes.shape[0]), sampled_nodes,return_uv=True
+            )[2].to(self.g.device)
+
             edges = torch.cat([edges, new_edges])
 
         subg = dgl.edge_subgraph(self.g, edges.unique()).to(self.g.device)
