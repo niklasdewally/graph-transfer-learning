@@ -15,8 +15,22 @@ packages = [
 ]
 
 
+[tool.poetry.build]
+#https://github.com/python-poetry/poetry/issues/2740#issuecomment-1447617294
+#https://github.com/python-poetry/poetry/issues/7470
+#https://github.com/python-poetry/poetry-core/pull/318
+#script="build.py"
+#generate-setup-file = true 
+
+
 [tool.poetry.dependencies]
 python = "3.11.*"
+torch = "^2.0.1"
+dgl = [
+   {url="https://data.dgl.ai/wheels/cu117/dgl-1.1.0%2Bcu117-cp311-cp311-manylinux1_x86_64.whl",markers="sys_platform =='linux'"},
+   {url="https://data.dgl.ai/wheels/dgl-1.1.0-cp311-cp311-macosx_11_0_arm64.whl",markers="sys_platform=='darwin' and platform_machine=='arm64' "},
+   {url="https://data.dgl.ai/wheels/dgl-1.1.0-cp311-cp311-macosx_10_10_x86_64.whl",markers="sys_platform=='darwin' and platform_machine=='x86_64' "}
+]
 gcmpy = {git = "https://github.com/PeterStAndrews/gcmpy"}
 scipy = "^1.10.1"
 igraph = "^0.10.4"
@@ -34,29 +48,7 @@ matplotlib = "3.5.1"
 ipython = "^8.14.0"
 black = "*"
 pyre-check = "^0.9.18"
-ruff = "*"
-
-
-[tool.poetry.group.cuda.dependencies]
-dgl = {url="https://data.dgl.ai/wheels/cu117/dgl-1.1.0%2Bcu117-cp311-cp311-manylinux1_x86_64.whl"}
-torch = "*"
-
-[[tool.poetry.source]]
-name = "cpu"
-url = "https://download.pytorch.org/whl/cpu"
-priority = "explicit"
-
-[tool.poetry.group.cpu.dependencies]
-dgl = [
-   {url="https://data.dgl.ai/wheels/dgl-1.1.0-cp311-cp311-macosx_11_0_arm64.whl",markers="sys_platform=='darwin' and platform_machine=='arm64' "},
-   {url="https://data.dgl.ai/wheels/dgl-1.1.0-cp311-cp311-macosx_10_10_x86_64.whl",markers="sys_platform=='darwin' and platform_machine=='x86_64' "},
-   {platform="linux",url="https://data.dgl.ai/wheels/dgl-1.1.1-cp311-cp311-manylinux1_x86_64.whl"}
-]
-
-torch = [
-  {platform="linux",version="*",source="cpu"},
-  { platform = "darwin",version="*"},
-  ]
+ruff = "^0.0.275"
 
 [build-system]
 requires = ["poetry-core","torch"]
