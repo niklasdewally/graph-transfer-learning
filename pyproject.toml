@@ -49,6 +49,7 @@ ipython = "^8.14.0"
 black = "*"
 pyre-check = "^0.9.18"
 ruff = "^0.0.275"
+ipdb="*"
 
 [build-system]
 requires = ["poetry-core","torch"]
