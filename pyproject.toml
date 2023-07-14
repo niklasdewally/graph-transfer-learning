@@ -14,15 +14,6 @@ packages = [
     { include = "gtl", from = "src" },
 ]
 
-
-[tool.poetry.build]
-#https://github.com/python-poetry/poetry/issues/2740#issuecomment-1447617294
-#https://github.com/python-poetry/poetry/issues/7470
-#https://github.com/python-poetry/poetry-core/pull/318
-#script="build.py"
-#generate-setup-file = true 
-
-
 [tool.poetry.dependencies]
 python = "3.11.*"
 torch = "^2.0.1"
@@ -36,7 +27,6 @@ scipy = "^1.10.1"
 igraph = "^0.10.4"
 networkx = "^2.6"
 tqdm = "^4.65.0"
-torchmetrics = "^0.11.4"
 wandb = "^0.15.3"
 ipython = "^8.13.2"
 scikit-learn = "^1.2.2"
@@ -51,9 +41,7 @@ pyre-check = "^0.9.18"
 ruff = "^0.0.275"
 ipdb="*"
 
-[build-system]
-requires = ["poetry-core","torch"]
-build-backend = "poetry.core.masonry.api"
+
 
 [tool.ruff]
 # Never enforce `E501` (line length violations).

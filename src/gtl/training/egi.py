@@ -2,22 +2,22 @@ __all__ = ["train_egi_encoder"]
 
 import tempfile
 from pathlib import Path
+from typing import Callable, Union
 from warnings import warn
 
 import dgl
 import torch
 import torch.nn as nn
-# pyre-ignore[21]:
-import wandb
 from dgl.dataloading import DataLoader
 from tqdm import tqdm
 
+# pyre-ignore[21]:
+import wandb
+
+from .. import Graph
 from ..features import degree_bucketing
 from ..models import EGI
 from ..samplers import KHopTriangleSampler
-from .. import Graph
-from gtl.samplers import KHopTriangleSampler
-from typing import Union, Callable
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

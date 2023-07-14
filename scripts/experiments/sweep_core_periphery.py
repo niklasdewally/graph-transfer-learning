@@ -21,9 +21,9 @@ sweep_config = {
         "target_core_size": {"value": 75},
         "source_periphery_size": {"value": 500},
         "target_periphery_size": {"value": 500},
-        "patience": {"value": 10},
+        "patience": {"value": 20},
         "min_delta": {"value": 0.01},
-        "epochs": {"value": 100},
+        "epochs": {"value": 200},
     },
 }
 
@@ -31,7 +31,7 @@ sweep_config = {
 def main() -> None:
     # read model type from arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("model", choices=["egi", "triangle"])
+    parser.add_argument("model", choices=["egi", "triangle", "graphsage"])
     parser.add_argument("--sweep-id", default=None, required=False)
 
     args = parser.parse_args()
