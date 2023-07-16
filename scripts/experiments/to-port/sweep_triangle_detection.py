@@ -31,7 +31,7 @@ sweep_config = {
 def main() -> None:
     # read model type from arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("model", choices=["egi", "triangle"])
+    parser.add_argument("model", choices=["egi", "triangle","graphsage"])
     parser.add_argument("--sweep-id", default=None, required=False)
 
     args = parser.parse_args()

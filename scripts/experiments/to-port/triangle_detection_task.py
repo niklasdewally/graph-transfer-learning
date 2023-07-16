@@ -41,7 +41,7 @@ HYPERPARAMS_DIR: pathlib.Path = SCRIPT_DIR / "triangle_detection_hyperparams"
 # model specific config is loaded from .toml later
 default_config: MutableMapping = {
     "repeats_per_trial": 1,
-    "models": ["triangle"],
+    "models": ["triangle","egi","graphsage"],
     "source_sizes": [(15, 100), (75, 500), (750, 5000)],
     "target_sizes": [(15, 100), (75, 500), (750, 5000)],
 }
