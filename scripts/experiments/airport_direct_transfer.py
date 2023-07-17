@@ -55,7 +55,7 @@ TMP_DIR: tempfile.TemporaryDirectory[str] = tempfile.TemporaryDirectory()
 
 # some experimental coCONFIG: dict[str, Any] = {
 default_config: MutableMapping = {
-    "LR": 0.01,
+    "lr": 0.01,
     "hidden_layers": 32,
     "patience": 10,
     "min_delta": 0.01,
@@ -168,7 +168,7 @@ def do_run() -> None:
             europe_g,
             n_epochs=wandb.config["epochs"],
             k=k,
-            lr=wandb.config["LR"],
+            lr=wandb.config["lr"],
             n_hidden_layers=wandb.config["hidden_layers"],
             batch_size=wandb.config["batch_size"],
             patience=wandb.config["patience"],
@@ -180,7 +180,7 @@ def do_run() -> None:
             europe_g,
             n_epochs=wandb.config["epochs"],
             k=k,
-            lr=wandb.config["LR"],
+            lr=wandb.config["lr"],
             n_hidden_layers=wandb.config["hidden_layers"],
             batch_size=wandb.config["batch_size"],
             patience=wandb.config["patience"],
