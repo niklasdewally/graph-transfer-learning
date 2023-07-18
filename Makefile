@@ -5,41 +5,68 @@ MAKEFLAGS += -j2 # do things in parallel
 
 PYTHON := poetry run python3
 
-#################################################################################
-# COMMANDS                                                                      #
-#################################################################################
+########################################################
+#                    PHONY COMMANDS                    #
+########################################################
 
 .PHONY: all
-## .
-all: generate-data
-
-.PHONY: generate-data
-## Generate synthetic graphs.
-generate-data: data/generated/core-periphery data/generated/clustered
-.PHONY: clean
-## .
-clean:
-	rm -rf data/generated/*
+## Run all experiment perparation tasks
+all: dl prepare-triangle-detection generate-data
 
 .PHONY: prepare-triangle-detection
 ## Generate negative samples for triangle detection tasks
 prepare-triangle-detection: data/processed/core-periphery
-#################################################################################
-# RULES                                                                         #
-#################################################################################
 
+.PHONY: generate-data
+## Generate synthetic graphs.
+generate-data: data/generated/core-periphery data/generated/clustered
+
+.PHONY: dl
+## Download raw datasets
+dl: data/raw/coauthor-cs.npz data/raw/coauthor-phy.npz
+
+.PHONY: clean
+## Clean, excluding generated datasets
+clean:
+	rm -rf data/processed/*
+	rm -rf data/raw/*
+
+.PHONY: full-clean
+## Clean, including generated datasets
+full-clean: clean
+	rm -rf data/generated/*
+
+###############################################
+#                    RULES                    #
+###############################################
+
+# Generate
 data/generated/core-periphery: scripts/generate-data/generate_core_periphery_dataset.py
 	$(PYTHON) $< $@
 
 data/generated/clustered: scripts/generate-data/generate_clustered_dataset.py
 	$(PYTHON) $< $@
 
+
+# Sample negative triangles for triangle detection task
 data/processed/core-periphery: scripts/pre-processing/negative-triangles.py data/generated/core-periphery
 	mkdir -p $@
 	$(PYTHON) $^ $@
-#################################################################################
-# Self Documenting Commands                                                     #
-#################################################################################
+
+# Download raw coauthor datasets from
+# https://github.com/shchur/gnn-benchmark
+
+data/raw/coauthor-cs.npz: 
+	mkdir -p data/raw
+	curl -o $@ -L https://github.com/shchur/gnn-benchmark/raw/master/data/npz/ms_academic_cs.npz
+
+data/raw/coauthor-phy.npz: 
+	mkdir -p data/raw
+	curl -o $@ -L https://github.com/shchur/gnn-benchmark/raw/master/data/npz/ms_academic_phy.npz
+
+############################################################
+#                    SELF DOCUMENTATION                    #
+############################################################
 
 .DEFAULT_GOAL := help
 
