@@ -19,7 +19,6 @@ from IPython import embed
 from .. import Graph
 
 
-
 class SAGEUnsupervised(nn.Module):
     """
     An unsupervised GraphSAGE mean model.
@@ -93,7 +92,7 @@ class SAGEUnsupervisedLoss(object):
         for node in nodes:
             node = node.item()
             node_loss = 0.0
-            
+
             assert node in self.positive_node_for.keys()
             assert node in self.negative_nodes_for.keys()
 
@@ -113,17 +112,17 @@ class SAGEUnsupervisedLoss(object):
                     node_embeddings[node], node_embeddings[negative_node]
                 )
                 negative_node_similarities = torch.cat(
-                    (negative_node_similarities, torch.unsqueeze(similarity,0))
+                    (negative_node_similarities, torch.unsqueeze(similarity, 0))
                 )
 
             node_loss += -self.Q * torch.mean(torch.log(torch.sigmoid(-similarity)))
 
-            node_losses = torch.cat((node_losses, torch.unsqueeze(node_loss,0)))
+            node_losses = torch.cat((node_losses, torch.unsqueeze(node_loss, 0)))
 
         return torch.mean(node_losses)
 
     def _create_edge_embedding(self, emb1, emb2) -> torch.Tensor:
-        return F.cosine_similarity(emb1, emb2,dim=0)
+        return F.cosine_similarity(emb1, emb2, dim=0)
 
     def _run_positive_walks(self) -> None:
         for node in self.train_nodes:
@@ -145,7 +144,7 @@ class SAGEUnsupervisedLoss(object):
             negative_nodes = list()
 
             # FIXME (niklasdewally): moving the graph node iterator to a list is not ideal - do i really need to shuffle this?
-            for n in random.sample(list(self.graph),len(list(self.graph))):
+            for n in random.sample(list(self.graph), len(list(self.graph))):
                 if len(negative_nodes) == self.Q:
                     break
 

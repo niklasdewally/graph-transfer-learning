@@ -1,8 +1,11 @@
-from . import Graph
-import random
-import networkx as nx
-
 import math
+import random
+
+import networkx as nx
+import torch
+
+from IPython import embed
+from . import Graph
 
 
 class LinkPredictionSplit:
@@ -140,7 +143,6 @@ class TrianglePredictionSplit:
         message_supervision_ratio: float = 0.6,
         train_val_ratio: float = 0.7,
     ) -> None:
-
         self.graph = graph
         """
         The graph
@@ -158,7 +160,7 @@ class TrianglePredictionSplit:
         n_mp_triangles: int = math.floor(self.message_supervision_ratio * n_triangles)
 
         # First, split edges into supervision and message-passing
-        #mp_triangles = triangles[:n_mp_triangles]
+        # mp_triangles = triangles[:n_mp_triangles]
         supervision_triangles = triangles[n_mp_triangles:]
 
         self.mp_graph: Graph = self.graph.copy()
@@ -168,11 +170,13 @@ class TrianglePredictionSplit:
         This should be used to train node embedding.
         """
 
-        for node1,node2,node3 in supervision_triangles:
+        for node1, node2, node3 in supervision_triangles:
             self.mp_graph.remove_triangle(node1, node2, node3)
 
         # Then, split supervision edges into train val
-        n_train_triangles: int = math.floor(self.train_val_ratio * len(supervision_triangles))
+        n_train_triangles: int = math.floor(
+            self.train_val_ratio * len(supervision_triangles)
+        )
 
         random.shuffle(supervision_triangles)
         train_triangles: list[list[int]] = supervision_triangles[:n_train_triangles]
@@ -189,7 +193,7 @@ class TrianglePredictionSplit:
         would have learnt these supervision nodes.
         """
 
-        for node1,node2,node3 in val_triangles:
+        for node1, node2, node3 in val_triangles:
             self.full_training_graph.remove_triangle(node1, node2, node3)
 
         self.train_triangles: list[list[int]] = train_triangles
@@ -203,4 +207,51 @@ class TrianglePredictionSplit:
         """
 
 
+# TODO (niklasdewally): write docstring
+class CoauthorNodeClassificationSplit:
+    def __init__(
+        self,
+        graph: Graph,
+        label_tensor: torch.Tensor,
+        device: torch.device,
+    ) -> None:
+        torch.manual_seed(0)
 
+        # Split nodes into train,val,test
+        train_idxs = torch.empty([0],dtype=torch.int64)
+        test_idxs = torch.empty([0],dtype=torch.int64)
+        val_idxs = torch.empty([0],dtype=torch.int64)
+
+        for label in label_tensor.unique():
+            label = label.item()
+
+            idxs_with_label = torch.where(label_tensor == label)[0]
+            n_nodes_with_label = idxs_with_label.shape[0]
+            shuffled_idxs = idxs_with_label[torch.randperm(n_nodes_with_label)]
+
+            n_train = math.floor(n_nodes_with_label * 0.6)
+            n_val = math.floor(n_nodes_with_label * 0.2)
+
+            train_idxs = torch.cat((train_idxs,shuffled_idxs[:n_train]))
+            val_idxs = torch.cat((val_idxs,shuffled_idxs[n_train : n_train + n_val]))
+            test_idxs = torch.cat((test_idxs,shuffled_idxs[n_train + n_val :]))
+
+        # TODO (niklasdewally): docstring
+        self.train_idxs: torch.Tensor = train_idxs.to(device)
+        self.train_mask: torch.Tensor = torch.zeros(label_tensor.shape)
+        self.train_mask = self.train_mask.scatter_(0, self.train_idxs, 1).to(device)
+
+        # TODO (niklasdewally): docstring
+        self.val_idxs: torch.Tensor = val_idxs.to(device)
+        self.val_mask: torch.Tensor = torch.zeros(label_tensor.shape)
+        self.val_mask = self.val_mask.scatter_(0, self.val_idxs, 1).to(device)
+
+        # TODO (niklasdewally): docstring
+        self.test_idxs: torch.Tensor = test_idxs.to(device)
+        self.test_mask: torch.Tensor = torch.zeros(label_tensor.shape)
+        self.test_mask = self.test_mask.scatter_(0, self.test_idxs, 1).to(device)
+
+        # Create small graph for few-shot training
+        self.small_idxs: torch.Tensor = self.train_idxs[: len(train_idxs) // 2].to(device)
+
+        self.small_g: Graph = graph.node_subgraph(self.small_idxs.tolist())

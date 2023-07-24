@@ -1,11 +1,17 @@
-
 data/raw
+
+results/vis
+
 .pyre/
 poetry.toml
+
+
 # R
 *.Rproj
 .Rhistory
 report_files/
+
+
 # Images
 *.png
 
@@ -18,7 +24,6 @@ models/
 # Saved model checkpoints
 *.pickle
 *.pt 
-
 
 # Macos
 .DS_Store

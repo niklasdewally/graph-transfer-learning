@@ -63,7 +63,7 @@ def main() -> None:
         sweep_config["parameters"].update({"model": {"value": model}})
 
         sweep_id = wandb.sweep(sweep=sweep_config)
-    wandb.agent(sweep_id=sweep_id, function=lambda : train(do_run))
+    wandb.agent(sweep_id=sweep_id, function=lambda: train(do_run))
 
 
 def train(do_run) -> None:

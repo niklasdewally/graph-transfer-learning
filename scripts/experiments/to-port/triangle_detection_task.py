@@ -41,7 +41,7 @@ HYPERPARAMS_DIR: pathlib.Path = SCRIPT_DIR / "triangle_detection_hyperparams"
 # model specific config is loaded from .toml later
 default_config: MutableMapping = {
     "repeats_per_trial": 1,
-    "models": ["triangle","egi","graphsage"],
+    "models": ["triangle", "egi", "graphsage"],
     "source_sizes": [(15, 100), (75, 500), (750, 5000)],
     "target_sizes": [(15, 100), (75, 500), (750, 5000)],
 }
@@ -89,7 +89,6 @@ def main() -> None:
 
 
 def do_run() -> None:
-
     ###############################
     #        LOAD DATASETS        #
     ###############################
@@ -102,11 +101,10 @@ def do_run() -> None:
     )
 
     src_graph: gtl.Graph = gtl.Graph.from_gml_file(DATA_DIR / src_g_name)
-    src_split : TrianglePredictionSplit = TrianglePredictionSplit(src_graph)
+    src_split: TrianglePredictionSplit = TrianglePredictionSplit(src_graph)
 
     target_graph: gtl.Graph = gtl.Graph.from_gml_file(DATA_DIR / target_g_name)
-    target_split : TrianglePredictionSplit = TrianglePredictionSplit(target_graph)
-
+    target_split: TrianglePredictionSplit = TrianglePredictionSplit(target_graph)
 
     wandb.config["target_graph_filename"] = target_g_name
     wandb.config["source_graph_filename"] = src_g_name
@@ -127,19 +125,22 @@ def do_run() -> None:
     )
 
     features: torch.Tensor = gtl.features.degree_bucketing(
-        src_split.full_training_graph.as_dgl_graph(device), wandb.config["hidden_layers"]
+        src_split.full_training_graph.as_dgl_graph(device),
+        wandb.config["hidden_layers"],
     )
     features = features.to(device)
 
-    node_embeddings: torch.Tensor = encoder(src_split.full_training_graph.as_dgl_graph(device), features)
-    
+    node_embeddings: torch.Tensor = encoder(
+        src_split.full_training_graph.as_dgl_graph(device), features
+    )
+
     pos_triangles = torch.tensor(src_split.train_triangles, device=device)
     neg_triangles = torch.tensor(
-        src_split.full_training_graph
-        .sample_negative_triangles(pos_triangles.shape[0]), device=device
+        src_split.full_training_graph.sample_negative_triangles(pos_triangles.shape[0]),
+        device=device,
     )
-# make same size
-    pos_triangles = pos_triangles[:neg_triangles.shape[0]]
+    # make same size
+    pos_triangles = pos_triangles[: neg_triangles.shape[0]]
 
     # Embed triangles by multiplying the three node embeddings together
 
@@ -169,30 +170,28 @@ def do_run() -> None:
     train_classes = train_classes[shuffle_mask]
 
     classifier = SGDClassifier(max_iter=1000)
-    classifier = classifier.fit(
-        train_embs.detach().cpu(), train_classes.detach().cpu()
-    )
+    classifier = classifier.fit(train_embs.detach().cpu(), train_classes.detach().cpu())
 
-
-   #####################################
-   #        SOURCE: VALIDATION         #
-   ##################################### 
+    #####################################
+    #        SOURCE: VALIDATION         #
+    #####################################
 
     features: torch.Tensor = gtl.features.degree_bucketing(
         src_split.graph.as_dgl_graph(device), wandb.config["hidden_layers"]
     )
     features = features.to(device)
 
-    node_embeddings: torch.Tensor = encoder(src_split.graph.as_dgl_graph(device), features)
-    
+    node_embeddings: torch.Tensor = encoder(
+        src_split.graph.as_dgl_graph(device), features
+    )
+
     pos_triangles = torch.tensor(src_split.val_triangles, device=device)
     neg_triangles = torch.tensor(
-        src_split.graph
-        .sample_negative_triangles(pos_triangles.shape[0]), device=device
+        src_split.graph.sample_negative_triangles(pos_triangles.shape[0]), device=device
     )
 
     # make same size
-    pos_triangles = pos_triangles[:neg_triangles.shape[0]]
+    pos_triangles = pos_triangles[: neg_triangles.shape[0]]
 
     # Embed triangles by multiplying the three node embeddings together
 
@@ -225,25 +224,29 @@ def do_run() -> None:
 
     wandb.summary["source-accuracy"] = score
 
-
     #########################################
     #        TARGET: DIRECT TRANSFER        #
     #########################################
 
     features: torch.Tensor = gtl.features.degree_bucketing(
-        target_split.full_training_graph.as_dgl_graph(device), wandb.config["hidden_layers"]
+        target_split.full_training_graph.as_dgl_graph(device),
+        wandb.config["hidden_layers"],
     )
     features = features.to(device)
 
-    node_embeddings: torch.Tensor = encoder(target_split.full_training_graph.as_dgl_graph(device), features)
-    
+    node_embeddings: torch.Tensor = encoder(
+        target_split.full_training_graph.as_dgl_graph(device), features
+    )
+
     pos_triangles = torch.tensor(target_split.train_triangles, device=device)
     neg_triangles = torch.tensor(
-        target_split.full_training_graph
-        .sample_negative_triangles(pos_triangles.shape[0]), device=device
+        target_split.full_training_graph.sample_negative_triangles(
+            pos_triangles.shape[0]
+        ),
+        device=device,
     )
-# make same size
-    pos_triangles = pos_triangles[:neg_triangles.shape[0]]
+    # make same size
+    pos_triangles = pos_triangles[: neg_triangles.shape[0]]
 
     # Embed triangles by multiplying the three node embeddings together
 
@@ -273,30 +276,29 @@ def do_run() -> None:
     train_classes = train_classes[shuffle_mask]
 
     classifier = SGDClassifier(max_iter=1000)
-    classifier = classifier.fit(
-        train_embs.detach().cpu(), train_classes.detach().cpu()
-    )
+    classifier = classifier.fit(train_embs.detach().cpu(), train_classes.detach().cpu())
 
-
-   #####################################
-   #        TARGET: VALIDATION         #
-   ##################################### 
+    #####################################
+    #        TARGET: VALIDATION         #
+    #####################################
 
     features: torch.Tensor = gtl.features.degree_bucketing(
         target_split.graph.as_dgl_graph(device), wandb.config["hidden_layers"]
     )
     features = features.to(device)
 
-    node_embeddings: torch.Tensor = encoder(target_split.graph.as_dgl_graph(device), features)
-    
+    node_embeddings: torch.Tensor = encoder(
+        target_split.graph.as_dgl_graph(device), features
+    )
+
     pos_triangles = torch.tensor(target_split.val_triangles, device=device)
     neg_triangles = torch.tensor(
-        target_split.graph
-        .sample_negative_triangles(pos_triangles.shape[0]), device=device
+        target_split.graph.sample_negative_triangles(pos_triangles.shape[0]),
+        device=device,
     )
 
     # make same size
-    pos_triangles = pos_triangles[:neg_triangles.shape[0]]
+    pos_triangles = pos_triangles[: neg_triangles.shape[0]]
 
     # Embed triangles by multiplying the three node embeddings together
 

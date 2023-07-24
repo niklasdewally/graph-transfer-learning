@@ -129,7 +129,7 @@ def train_graphsage_encoder(
             # samplers do not do prefetching of features, only dataloaders do
             # emulate this behaviour ourselves
             # from https://docs.dgl.ai/en/1.0.x/generated/dgl.dataloading.base.LazyFeature.html
-            
+
             loss_feats = dgl_graph.ndata["feat"][loss_blocks[0].srcdata[dgl.NID]]
 
             # calculate gradients, etc for batch blocks only
@@ -152,15 +152,12 @@ def train_graphsage_encoder(
         model.eval()
         loss = 0.0
 
-
         # as above, we need embeddings for the entire graph for the loss function
-        loss_in_nodes, loss_out_nodes, loss_blocks = sampler.sample(
-            dgl_graph, indexes
-        )
+        loss_in_nodes, loss_out_nodes, loss_blocks = sampler.sample(dgl_graph, indexes)
         loss_feats = dgl_graph.ndata["feat"][loss_blocks[0].srcdata[dgl.NID]]
 
         for input_nodes, output_nodes, blocks in val_dataloader:
-            embs = model(loss_blocks,loss_feats)
+            embs = model(loss_blocks, loss_feats)
             l = loss_function(output_nodes, embs)
 
             loss += l.item()
@@ -194,8 +191,8 @@ def train_graphsage_encoder(
 
     def encoder(g, features):
         sampler = dgl.dataloading.MultiLayerFullNeighborSampler(k)
-        (inp,out,blocks) = sampler.sample(g,g.nodes())
+        (inp, out, blocks) = sampler.sample(g, g.nodes())
 
-        return model(blocks,features[blocks[0].srcdata[dgl.NID]])
-        
+        return model(blocks, features[blocks[0].srcdata[dgl.NID]])
+
     return encoder

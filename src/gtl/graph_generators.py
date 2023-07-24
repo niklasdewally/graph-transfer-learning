@@ -8,7 +8,7 @@ import networkx as nx
 import igraph as ig
 
 
-def add_structural_labels(G, k: int=1, existing_labels=None):
+def add_structural_labels(G, k: int = 1, existing_labels=None):
     """
     Group nodes based on the isomorphism of their k-hop ego-graphs. These
     groups become numerical labels, emulating structurally relevant labels.

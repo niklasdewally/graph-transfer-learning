@@ -3,7 +3,8 @@ Utilities to log various metadata to Weights and Biases.
 """
 
 import networkx as nx
-#pyre-ignore[21]
+
+# pyre-ignore[21]
 import wandb
 from typing import Optional
 

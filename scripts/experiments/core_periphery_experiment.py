@@ -55,7 +55,7 @@ def main() -> None:
     cli_options = argument_parser.parse_args()
 
     for model in ["graphsage"]:
-    #for model in ["triangle", "egi","graphsage"]:
+        # for model in ["triangle", "egi","graphsage"]:
         # load model specific config from .toml file
         model_config: MutableMapping = _load_model_config(model)
 
@@ -121,10 +121,10 @@ def run() -> None:
     ###################
 
     model_params = wandb.config
-    
+
     model = wandb.config["model"]
 
-    if model in ["egi","triangle"]:
+    if model in ["egi", "triangle"]:
         encoder = gtl.training.train_egi_encoder(
             src_split.mp_graph,
             k=model_params["k"],
@@ -144,10 +144,9 @@ def run() -> None:
             patience=model_params["patience"],
             min_delta=model_params["min_delta"],
             n_epochs=model_params["epochs"],
-                                                                 )
+        )
     else:
         raise ValueError(f"Invalid model type {model}")
-
 
     features: torch.Tensor = gtl.features.degree_bucketing(
         src_split.full_training_graph.as_dgl_graph(device),

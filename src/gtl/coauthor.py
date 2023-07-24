@@ -15,7 +15,7 @@ The original data can be downloaded from https://github.com/shchur/gnn-benchmark
 
 
 # Some attributes are saved as sparse scipy arrays, others as np arrays
-def load_coauthor_npz(location: PathLike) -> tuple[Graph,torch.Tensor]:
+def load_coauthor_npz(location: PathLike) -> tuple[Graph, torch.Tensor, torch.Tensor]:
     file_data = np.load(location, allow_pickle=True)
 
     # adjaceny matrix is sparse
@@ -32,18 +32,15 @@ def load_coauthor_npz(location: PathLike) -> tuple[Graph,torch.Tensor]:
     attr_indptr = file_data.get("attr_indptr")
     attr_shape = file_data.get("attr_shape")
 
-    attr = sp.csr_array(
-        (attr_data, attr_indices, attr_indptr), attr_shape
-    )
+    attr = sp.csr_array((attr_data, attr_indices, attr_indptr), attr_shape)
 
-    attr_tensor : torch.Tensor = torch.tensor(attr.toarray())
+    attr_tensor: torch.Tensor = torch.tensor(attr.toarray())
 
     labels: np.typing.NDArray = file_data["labels"]
-    node_names: np.typing.NDArray = file_data["node_names"]
-    attr_names: np.typing.NDArray = file_data["attr_names"]
-    class_names: np.typing.NDArray = file_data["class_names"]
+    # node_names: np.typing.NDArray = file_data["node_names"]
+    # attr_names: np.typing.NDArray = file_data["attr_names"]
+    # class_names: np.typing.NDArray = file_data["class_names"]
 
     nx_graph: nx.Graph = nx.Graph(adj)
-    nx.set_node_attributes(nx_graph, attr, name="feats")
 
-    return Graph(nx_graph),attr_tensor
+    return Graph(nx_graph), attr_tensor, torch.tensor(labels)

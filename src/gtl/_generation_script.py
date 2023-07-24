@@ -57,7 +57,9 @@ class GraphGenerationScript:
                 pass
 
     @staticmethod
-    def _mine_and_save_graph(opts: MutableMapping, data_dir: Path , t: tuple[str, nx.Graph]) -> str:
+    def _mine_and_save_graph(
+        opts: MutableMapping, data_dir: Path, t: tuple[str, nx.Graph]
+    ) -> str:
         filename, g = t
         _delete_gcmpy_metadata(g)
 
@@ -109,7 +111,9 @@ class GraphGenerationScript:
         print("Error: data directory is not empty.")
         sys.exit(1)
 
-    def set_generation_strategy(self, generation_strategy: GraphGenerationStrategy) -> None:
+    def set_generation_strategy(
+        self, generation_strategy: GraphGenerationStrategy
+    ) -> None:
         self.generator = generation_strategy
 
 

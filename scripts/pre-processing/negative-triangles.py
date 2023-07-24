@@ -10,7 +10,9 @@ from gtl import Graph
 import sys
 from pathlib import Path
 import argparse
-PROJECT_DIR : Path = Path(__file__).parent.parent.parent.resolve()
+
+PROJECT_DIR: Path = Path(__file__).parent.parent.parent.resolve()
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -28,7 +30,7 @@ def main() -> None:
 
     if not target_dir.exists():
         target_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # do this in single thread only due to high memory usage
     for path in src_dir.glob("*.gml"):
         print(path)
@@ -37,8 +39,8 @@ def main() -> None:
 
         g = Graph.from_gml_file(path)
         sample = g.sample_negative_triangles(len(g.get_triangles_list()))
-        with open(destination,"w") as f:
-            json.dump(sample,f)
+        with open(destination, "w") as f:
+            json.dump(sample, f)
 
 
 if __name__ == "__main__":

@@ -9,13 +9,15 @@ __all__ = ["KHopTriangleSampler"]
 
 
 class KHopTriangleSampler(Sampler):
-    def __init__(self, g: dgl.DGLGraph, fanouts:list[int], triangles: dict[int,list[list[int]]]) -> None:
+    def __init__(
+        self, g: dgl.DGLGraph, fanouts: list[int], triangles: dict[int, list[list[int]]]
+    ) -> None:
         super().__init__()
         self.fanouts = fanouts
         self.g = g
         self.triangles = triangles
 
-    #pyre-ignore[3]
+    # pyre-ignore[3]
     def sample(self, _, seed_nodes: torch.Tensor):
         # loosely inspired by
         # https://github.com/dmlc/dgl/blob/master/python/dgl/dataloading/neighbor_sampler.py
@@ -30,7 +32,9 @@ class KHopTriangleSampler(Sampler):
             blocks.insert(0, block)
         return seed_nodes, output_nodes, blocks
 
-    def _sample_triangle_neighbors(self, seed_nodes: torch.Tensor, fanout: int) -> dgl.DGLGraph:
+    def _sample_triangle_neighbors(
+        self, seed_nodes: torch.Tensor, fanout: int
+    ) -> dgl.DGLGraph:
         """
 
         Sample triangles that contain the given nodes, and return the induced subgraph.
@@ -53,9 +57,9 @@ class KHopTriangleSampler(Sampler):
         edges = torch.empty(0, device=self.g.device, dtype=torch.int64)
 
         for nid_tensor in seed_nodes:
-            nid : int = nid_tensor.item()
+            nid: int = nid_tensor.item()
             sampled_triangles = torch.tensor(
-                sample(self.triangles[nid], min(fanout,len(self.triangles[nid]))),
+                sample(self.triangles[nid], min(fanout, len(self.triangles[nid]))),
                 device=self.g.device,
                 dtype=torch.int64,
             )
@@ -63,7 +67,11 @@ class KHopTriangleSampler(Sampler):
             # [1,2,3,4,...]
             sampled_nodes = torch.flatten(sampled_triangles).unique()
             new_edges = self.g.edge_ids(
-                torch.tensor([nid],device=self.g.device).repeat(sampled_nodes.shape[0]), sampled_nodes,return_uv=True
+                torch.tensor([nid], device=self.g.device).repeat(
+                    sampled_nodes.shape[0]
+                ),
+                sampled_nodes,
+                return_uv=True,
             )[2].to(self.g.device)
 
             edges = torch.cat([edges, new_edges])

@@ -1,4 +1,4 @@
-#pyre-unsafe
+# pyre-unsafe
 import torch.nn
 import torch.nn as nn
 import math
@@ -77,8 +77,8 @@ class EGI(nn.Module):
 
             l += E_neg - E_pos
 
-        #assert pos_num != 0
-        #assert neg_num != 0
+        # assert pos_num != 0
+        # assert neg_num != 0
 
         return E_neg / neg_num - E_pos / pos_num
 
@@ -446,7 +446,7 @@ class MLP(nn.Module):
             return self.linears[-1](h)
 
 
-def get_positive_expectation(p_samples, measure, average: bool=True):
+def get_positive_expectation(p_samples, measure, average: bool = True):
     """Computes the positive part of a divergence / difference.
     Args:
         p_samples: Positive samples.
@@ -482,7 +482,7 @@ def get_positive_expectation(p_samples, measure, average: bool=True):
         return Ep
 
 
-def get_negative_expectation(q_samples, measure, average: bool=True):
+def get_negative_expectation(q_samples, measure, average: bool = True):
     """Computes the negative part of a divergence / difference.
     Args:
         q_samples: Negative samples.

@@ -1,16 +1,17 @@
 import itertools
-from random import sample
-from copy import deepcopy
-from .typing import PathLike
-from typing import Optional
+
 from collections.abc import Mapping
-import torch
+from copy import deepcopy
+from random import sample
+from typing import Optional,List
 
 from IPython import embed
 import dgl
 import networkx as nx
+import torch
 from networkx.readwrite.gml import literal_destringizer, literal_stringizer
 
+from .typing import PathLike
 
 TRIANGLES = "gtl_triangles"
 
@@ -27,9 +28,10 @@ class Graph:
     def __init__(self, g: nx.Graph) -> None:
         self._G: nx.Graph = deepcopy(g)
         self.triads_by_type: dict[str, list[nx.Graph]] | None = None
+
         # pyre-ignore[8]
         self._dgl_g: dgl.DGLGraph = None
-        self._feat_tensor: torch.Tensor = None
+
 
     @staticmethod
     def from_gml_file(path: PathLike) -> "Graph":
@@ -39,9 +41,10 @@ class Graph:
     @staticmethod
     def from_dgl_graph(
         g: dgl.DGLGraph,
-        node_attrs: Optional[Mapping] = None,
-        edge_attrs: Optional[Mapping] = None,
+        node_attrs: Optional[List[str]] = None,
+        edge_attrs: Optional[List[str]] = None,
     ) -> "Graph":
+
         nx_g: nx.Graph = dgl.to_networkx(
             g.cpu(), node_attrs, edge_attrs
         ).to_undirected()
@@ -94,9 +97,10 @@ class Graph:
             # use a sorted ordering so that order does not matter.
             # this will make removal easier!
             triangle_nodes = sorted(x for j, x in enumerate(nodes) if j != i)
-            self._G.nodes[current_node][TRIANGLES].append(triangle_nodes)
+            if not self._G.nodes[current_node][TRIANGLES].__contains__(triangle_nodes):
+                self._G.nodes[current_node][TRIANGLES].append(triangle_nodes)
 
-            self._on_change()
+        self._on_change()
 
     def copy(self) -> "Graph":
         new_g: nx.Graph = self._G.copy()
@@ -188,39 +192,46 @@ class Graph:
 
         return Graph(new_g)
 
-    def node_subgraph(self, nodes: list[int]) -> "Graph":
+    # pyre-ignore[2]
+    def node_subgraph(self, nodes: list[int], device="cpu") -> "Graph":
         """
         Create a subgraph based on nodes.
 
-        Nodes are reindexed from 0 - old ids are stored in the "old_id" node attribute
+        Nodes are reindexed from 0 - old ids are stored in the "old_nid" node attribute
         of the underlying networkx graph.
         """
-        new_g: nx.Graph = self._G.subgraph(nodes).to_undirected().to_directed().copy()
-
-        # delete triangles that no longer exist
-        for nid in new_g:
-            triangles = new_g.nodes[nid][TRIANGLES]
-            for i, triangle in enumerate(list(triangles)):
-                if not all(x in new_g.nodes for x in triangle):
-                    triangles.remove(triangle)
-            new_g.nodes[nid][TRIANGLES] = triangles
-
-        # reindex nodes and triangles to be sequential
-        new_g = nx.convert_node_labels_to_integers(new_g, label_attribute="old_id")
+        new_dgl_g: dgl.DGLGraph = dgl.node_subgraph(self.as_dgl_graph(device), nodes)
 
         # make map of old ids -> new ids
         # then, use this to relabel ids of triangles
 
-        mapping = {v: k for k, v in nx.get_node_attributes(new_g, "old_id").items()}
-        for nid in new_g:
-            triangles = new_g.nodes[nid][TRIANGLES]
-            new_triangles = []
+        old_nids: torch.Tensor = new_dgl_g.ndata[dgl.NID]
+        old_to_new_nid = {old_nids[i].item() : i for i in range(old_nids.shape[0])}
+
+        # convert old ids to new ids in triangles, and remove any that do not exist anymore
+        new_triangles = dict()
+        for new_nid in range(new_dgl_g.num_nodes()):
+            #pyre-ignore[9]:
+            old_nid : int = old_nids[new_nid].item()
+
+            new_triangles[new_nid] = list()
+            triangles = self.get_triangles(old_nid)
+
             for triangle in triangles:
-                new_triangles.append([mapping[x] for x in triangle])
+                new_triangle = [old_to_new_nid.get(x) for x in triangle]
+                triangle_exists_in_new_g = all(x is not None for x in new_triangle)
 
-            new_g.nodes[nid][TRIANGLES] = new_triangles
+                if triangle_exists_in_new_g:
+                    new_triangles[new_nid].append(new_triangle)
 
-        return Graph(new_g)
+        new_g: "Graph" = Graph.from_dgl_graph(new_dgl_g)
+
+        # add triangles to new_g
+        for new_nid, triangles in new_triangles.items():
+            for triangle in triangles:
+                new_g.add_triangle(new_nid, triangle[0], triangle[1])
+
+        return new_g
 
     def mine_triangles(self) -> None:
         self._reset_triangles()
@@ -291,23 +302,6 @@ class Graph:
 
         return sample(all_non_triangles, min(len(all_non_triangles), n))
 
-    def has_node_features(self) -> bool:
-        nx_feats = list(dict(self._G.nodes(data="feats", default=None)).values())
-        feats_exist = all(val is not None for val in nx_feats)
-
-        return feats_exist
-
-    def get_features_tensor(self, device: torch.device) -> torch.Tensor:
-        if not self.has_node_features():
-            raise ValueError("This graph has no node features")
-
-        if self._feat_tensor is not None:
-            return self._feat_tensor.to(device)
-
-        nx_feats = list(dict(self._G.nodes(data="feats", default=None)).values())
-        feats: torch.Tensor = torch.tensor(nx_feats, device=device)
-        self._feat_tensor = feats
-        return feats
 
     def _generate_triads_by_type(self) -> None:
         self.triads_by_type = nx.triads_by_type(self._G.to_directed())
@@ -321,5 +315,5 @@ class Graph:
     def _on_change(self) -> None:
         # invalidate caches
         self.triads_by_type = None
+        # pyre-ignore[8]
         self._dgl_g = None
-        self._feat_tensor = None

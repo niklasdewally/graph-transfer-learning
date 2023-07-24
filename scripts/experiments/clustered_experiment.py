@@ -238,7 +238,8 @@ def do_run() -> None:
     embs = encoder(target_split.full_training_graph.as_dgl_graph(device), features)
 
     negative_us, negative_vs = global_uniform_negative_sampling(
-        target_split.full_training_graph.as_dgl_graph(device), (len(target_split.train_edges))
+        target_split.full_training_graph.as_dgl_graph(device),
+        (len(target_split.train_edges)),
     )
 
     shuffle_mask = torch.randperm(len(target_split.train_edges))
