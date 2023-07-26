@@ -1,10 +1,10 @@
 import math
 import random
 
+import dgl
 import networkx as nx
 import torch
 
-from IPython import embed
 from . import Graph
 
 
@@ -207,51 +207,137 @@ class TrianglePredictionSplit:
         """
 
 
-# TODO (niklasdewally): write docstring
 class CoauthorNodeClassificationSplit:
+    """
+    Node splits for the CoAuthor classification experiment.
+
+    This experiment trys to learn node classes based on node embeddings trainied from a small
+    subgraph.
+
+        Train node embeddings (small graph) --> Train classifier (full graph + label splits)
+
+    This split creates train/test/val splits for training the classification, as well as the small
+    graph used to train node embeddings.
+
+    For the train/test/val sets, nodes with each label is added randomly according to the train/test/val
+    proportions. Therefore, these splits have the same distribution of labels as the full graph.
+
+    The small graph's nodes are a strict subset of the training nodes.
+
+    The small pretrain graph takes the first half of training nodes per label. This results in a
+    graph that is approximately ~30% the size of the full graph that has similar feature/label
+    distribution.
+
+    This can be inspected further using `scripts/vis/visualise_coauthor_feats.py`.
+
+    See also:
+        gtl.coauthor.load_coauthor_npz()
+    """
+
     def __init__(
         self,
         graph: Graph,
         label_tensor: torch.Tensor,
         device: torch.device,
     ) -> None:
+        self.train_idxs: torch.Tensor
+        """
+        A tensor containing the indicies of all nodes used as train labels.
+        """
+
+        self.train_mask: torch.Tensor
+        """
+        Mask tensor for the training label set.
+        """
+
+        self.val_idxs: torch.Tensor
+        """
+        A tensor containing the indicies of all nodes used as validation labels.
+        """
+
+        self.val_mask: torch.Tensor
+        """
+        Mask tensor for the validation label set.
+        """
+
+        self.test_idxs: torch.Tensor
+        """
+        A tensor containing the indicies of all nodes used as test labels.
+        """
+
+        self.test_mask: torch.Tensor
+        """
+        Mask tensor for the test label set.
+        """
+
+        self.small_idxs: torch.Tensor
+        """
+        A tensor containing the indicies of all nodes used in the small pre-training graph. 
+        """
+
+        self.small_mask: torch.Tensor
+        """
+        Mask tensor for the small pre-training graph.
+        """
+
+        self.small_g: Graph
+        """
+        The small pre-training graph.
+        """
+
         torch.manual_seed(0)
 
+        label_tensor = label_tensor.to(device)
+
         # Split nodes into train,val,test
-        train_idxs = torch.empty([0],dtype=torch.int64)
-        test_idxs = torch.empty([0],dtype=torch.int64)
-        val_idxs = torch.empty([0],dtype=torch.int64)
+        train_idxs = torch.empty([0], dtype=torch.int64, device=device)
+        test_idxs = torch.empty([0], dtype=torch.int64, device=device)
+        val_idxs = torch.empty([0], dtype=torch.int64, device=device)
+        small_idxs = torch.empty([0], dtype=torch.int64, device=device)
 
         for label in label_tensor.unique():
             label = label.item()
 
             idxs_with_label = torch.where(label_tensor == label)[0]
             n_nodes_with_label = idxs_with_label.shape[0]
-            shuffled_idxs = idxs_with_label[torch.randperm(n_nodes_with_label)]
+            shuffled_idxs = idxs_with_label[
+                torch.randperm(n_nodes_with_label, device=device)
+            ]
 
             n_train = math.floor(n_nodes_with_label * 0.6)
             n_val = math.floor(n_nodes_with_label * 0.2)
 
-            train_idxs = torch.cat((train_idxs,shuffled_idxs[:n_train]))
-            val_idxs = torch.cat((val_idxs,shuffled_idxs[n_train : n_train + n_val]))
-            test_idxs = torch.cat((test_idxs,shuffled_idxs[n_train + n_val :]))
+            train_idxs = torch.cat((train_idxs, shuffled_idxs[:n_train]))
+            small_idxs = torch.cat((small_idxs, shuffled_idxs[: n_train // 2]))
+            val_idxs = torch.cat((val_idxs, shuffled_idxs[n_train : n_train + n_val]))
+            test_idxs = torch.cat((test_idxs, shuffled_idxs[n_train + n_val :]))
 
-        # TODO (niklasdewally): docstring
-        self.train_idxs: torch.Tensor = train_idxs.to(device)
-        self.train_mask: torch.Tensor = torch.zeros(label_tensor.shape)
-        self.train_mask = self.train_mask.scatter_(0, self.train_idxs, 1).to(device)
+        self.train_idxs = train_idxs.to(device)
 
-        # TODO (niklasdewally): docstring
-        self.val_idxs: torch.Tensor = val_idxs.to(device)
-        self.val_mask: torch.Tensor = torch.zeros(label_tensor.shape)
-        self.val_mask = self.val_mask.scatter_(0, self.val_idxs, 1).to(device)
+        train_mask = torch.zeros(label_tensor.shape, dtype=torch.bool, device=device)
+        self.train_mask = train_mask.scatter_(0, self.train_idxs, 1).to(device)
 
-        # TODO (niklasdewally): docstring
+        self.val_idxs = val_idxs.to(device)
+
+        val_mask = torch.zeros(label_tensor.shape, dtype=torch.bool, device=device)
+        self.val_mask = val_mask.scatter_(0, self.val_idxs, 1).to(device)
+
         self.test_idxs: torch.Tensor = test_idxs.to(device)
-        self.test_mask: torch.Tensor = torch.zeros(label_tensor.shape)
-        self.test_mask = self.test_mask.scatter_(0, self.test_idxs, 1).to(device)
 
-        # Create small graph for few-shot training
-        self.small_idxs: torch.Tensor = self.train_idxs[: len(train_idxs) // 2].to(device)
+        test_mask: torch.Tensor = torch.zeros(
+            label_tensor.shape, dtype=torch.bool, device=device
+        )
+        self.test_mask = test_mask.scatter_(0, self.test_idxs, 1).to(device)
 
-        self.small_g: Graph = graph.node_subgraph(self.small_idxs.tolist())
+        self.small_g: Graph = graph.node_subgraph(small_idxs.tolist())
+
+        # the subgraph sampler removes some isolated nodes, so update small_idxs to reflect this
+        self.small_idxs = torch.tensor(
+            list(nx.get_node_attributes(self.small_g.as_nx_graph(), dgl.NID).values()),
+            device=device,
+        )
+
+        small_mask: torch.Tensor = torch.zeros(
+            label_tensor.shape, dtype=torch.bool, device=device
+        )
+        self.small_mask = small_mask.scatter_(0, self.small_idxs, 1).to(device)

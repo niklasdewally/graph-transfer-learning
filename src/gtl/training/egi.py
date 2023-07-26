@@ -2,7 +2,8 @@ __all__ = ["train_egi_encoder"]
 
 import tempfile
 from pathlib import Path
-from typing import Callable, Union
+from typing import Callable, Union, Optional
+
 from warnings import warn
 
 import dgl
@@ -21,6 +22,8 @@ from ..samplers import KHopTriangleSampler
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# TODO (niklasdewally): update docstring
+
 
 def train_egi_encoder(
     graph: Graph,
@@ -31,6 +34,7 @@ def train_egi_encoder(
     n_epochs: int = 100,
     weight_decay: float = 0.0,
     feature_mode: str = "degree_bucketing",
+    features: Optional[torch.Tensor] = None,
     optimiser: str = "adam",
     pre_train=None,
     batch_size: int = 50,
@@ -132,15 +136,8 @@ def train_egi_encoder(
         )
 
     # input validation
-    valid_feature_modes = ["degree_bucketing"]
     valid_optimisers = ["adam"]
     valid_samplers = ["egi", "triangle"]
-
-    if feature_mode not in valid_feature_modes:
-        raise ValueError(
-            f"{feature_mode} is not a valid feature generation "
-            "mode. Valid options are {valid_feature_modes}."
-        )
 
     if optimiser not in valid_optimisers:
         raise ValueError(
@@ -168,7 +165,13 @@ def train_egi_encoder(
 
     # generate features
 
-    features = degree_bucketing(dgl_graph, n_hidden_layers)
+    match feature_mode:
+        case "degree_bucketing":
+            features = degree_bucketing(dgl_graph, n_hidden_layers)
+        case "none":
+            features = features
+        case e:
+            raise ValueError(f"{e} is not a valid feature generation mode")
 
     if sampler_type == "egi":
         sampler: dgl.dataloading.Sampler = dgl.dataloading.NeighborSampler(
@@ -183,6 +186,7 @@ def train_egi_encoder(
             dgl_graph, [10 for i in range(k)], triangles
         )
 
+    # pyre-ignore[16]:
     features = features.to(device)
     dgl_graph = dgl_graph.to(device)
 

@@ -3,7 +3,7 @@ import itertools
 from collections.abc import Mapping
 from copy import deepcopy
 from random import sample
-from typing import Optional,List
+from typing import Optional, List
 
 from IPython import embed
 import dgl
@@ -32,7 +32,6 @@ class Graph:
         # pyre-ignore[8]
         self._dgl_g: dgl.DGLGraph = None
 
-
     @staticmethod
     def from_gml_file(path: PathLike) -> "Graph":
         g = nx.read_gml(path, destringizer=literal_destringizer)
@@ -44,7 +43,6 @@ class Graph:
         node_attrs: Optional[List[str]] = None,
         edge_attrs: Optional[List[str]] = None,
     ) -> "Graph":
-
         nx_g: nx.Graph = dgl.to_networkx(
             g.cpu(), node_attrs, edge_attrs
         ).to_undirected()
@@ -66,8 +64,8 @@ class Graph:
         vs: torch.Tensor = torch.empty([0], dtype=torch.int64, device=device)
 
         for u, v in edges:
-            us = torch.cat((us, torch.tensor([u])))
-            vs = torch.cat((vs, torch.tensor([v])))
+            us = torch.cat((us, torch.tensor([u], device=device)))
+            vs = torch.cat((vs, torch.tensor([v], device=device)))
 
         self._dgl_g = dgl.graph((us, vs), device=device)
 
@@ -199,20 +197,28 @@ class Graph:
 
         Nodes are reindexed from 0 - old ids are stored in the "old_nid" node attribute
         of the underlying networkx graph.
+
+        Isolate nodes are also removed.
         """
         new_dgl_g: dgl.DGLGraph = dgl.node_subgraph(self.as_dgl_graph(device), nodes)
+        isolated_nodes = (
+            ((new_dgl_g.in_degrees() == 0) & (new_dgl_g.out_degrees() == 0))
+            .nonzero()
+            .squeeze(1)
+        )
+        new_dgl_g.remove_nodes(isolated_nodes)
 
         # make map of old ids -> new ids
         # then, use this to relabel ids of triangles
 
         old_nids: torch.Tensor = new_dgl_g.ndata[dgl.NID]
-        old_to_new_nid = {old_nids[i].item() : i for i in range(old_nids.shape[0])}
+        old_to_new_nid = {old_nids[i].item(): i for i in range(old_nids.shape[0])}
 
         # convert old ids to new ids in triangles, and remove any that do not exist anymore
         new_triangles = dict()
         for new_nid in range(new_dgl_g.num_nodes()):
-            #pyre-ignore[9]:
-            old_nid : int = old_nids[new_nid].item()
+            # pyre-ignore[9]:
+            old_nid: int = old_nids[new_nid].item()
 
             new_triangles[new_nid] = list()
             triangles = self.get_triangles(old_nid)
@@ -224,7 +230,7 @@ class Graph:
                 if triangle_exists_in_new_g:
                     new_triangles[new_nid].append(new_triangle)
 
-        new_g: "Graph" = Graph.from_dgl_graph(new_dgl_g)
+        new_g: "Graph" = Graph.from_dgl_graph(new_dgl_g, node_attrs=[dgl.NID])
 
         # add triangles to new_g
         for new_nid, triangles in new_triangles.items():
@@ -301,7 +307,6 @@ class Graph:
         )
 
         return sample(all_non_triangles, min(len(all_non_triangles), n))
-
 
     def _generate_triads_by_type(self) -> None:
         self.triads_by_type = nx.triads_by_type(self._G.to_directed())

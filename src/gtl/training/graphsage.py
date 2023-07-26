@@ -31,6 +31,7 @@ def train_graphsage_encoder(
     n_hidden_layers: int = 32,
     n_epochs: int = 100,
     feature_mode: str = "degree_bucketing",
+    features=None,
     pre_train: gtl_typing.PathLike = "",
     save_weights_to: gtl_typing.PathLike = "",
     batch_size: int = 50,
@@ -39,14 +40,6 @@ def train_graphsage_encoder(
     weight_decay: float = 0.0,
     wandb_summary_prefix: str = "",
 ):
-    valid_feature_modes = ["degree_bucketing"]
-
-    if feature_mode not in valid_feature_modes:
-        raise ValueError(
-            f"{feature_mode} is not a valid feature generation "
-            "mode. Valid options are {valid_feature_modes}."
-        )
-
     if k < 1:
         raise ValueError("k must be 1 or greater.")
 
@@ -60,8 +53,16 @@ def train_graphsage_encoder(
     early_stopping_filepath = Path(temporary_directory.name, "stopping.pt")
 
     # generate features
-    features = degree_bucketing(dgl_graph, n_hidden_layers).to(device)
+    match feature_mode:
+        case "degree_bucketing":
+            features = degree_bucketing(dgl_graph, n_hidden_layers)
+        case "none":
+            features = features
+        case e:
+            raise ValueError(f"{e} is not a valid feature generation mode")
+
     dgl_graph.ndata["feat"] = features
+
     sampler: dgl.dataloading.Sampler = dgl.dataloading.NeighborSampler(
         [10 for i in range(k)], prefetch_node_feats=["feat"]
     )
