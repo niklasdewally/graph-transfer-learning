@@ -1,37 +1,37 @@
-data/raw
-
-results/vis
-
-.pyre/
-poetry.toml
 
 
-# R
-*.Rproj
-.Rhistory
-report_files/
+# Data / Results
 
+data/
+results/
 
-# Images
-*.png
+# Saved models
 
-# Run data
-runs/
-wandb/
-models/
-!src/gtl/models
-
-# Saved model checkpoints
 *.pickle
 *.pt 
 
-# Macos
+# R / RStudio 
+
+*.Rproj
+*.png
+.Rhistory
+report_files/
+
+# Wandb Run Data
+
+wandb/
+
+# Poetry and Python Dev tools
+
+.pyre/
+poetry.toml
+.vscode/
+
+# MacOS
+
 .DS_Store
 ._.DS_Store
 .Trash-0/
-
-# Editors
-.vscode/
 
 
 ##############################################################################

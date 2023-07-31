@@ -2,8 +2,6 @@
 For each gml file in the source folder, generate a json file in the 
 target folder containing a sample of negative triangles for use in triangle 
 detection tasks.
-
-This requires alot (>32GB) of RAM!!
 """
 import json
 from gtl import Graph
@@ -12,7 +10,6 @@ from pathlib import Path
 import argparse
 
 PROJECT_DIR: Path = Path(__file__).parent.parent.parent.resolve()
-
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -31,11 +28,11 @@ def main() -> None:
     if not target_dir.exists():
         target_dir.mkdir(parents=True, exist_ok=True)
 
-    # do this in single thread only due to high memory usage
+    # do this in single thread for now
     for path in src_dir.glob("*.gml"):
-        print(path)
         filename: str = path.stem
-        destination: Path = Path(f"{filename}-negative-triangles.json")
+        destination: Path = Path(target_dir) / f"{filename}-negative-triangles.json"
+        print(f"{destination}")
 
         g = Graph.from_gml_file(path)
         sample = g.sample_negative_triangles(len(g.get_triangles_list()))

@@ -1,11 +1,10 @@
 import itertools
 
-from collections.abc import Mapping
 from copy import deepcopy
-from random import sample
+from random import sample, choice
 from typing import Optional, List
+import numpy as np
 
-from IPython import embed
 import dgl
 import networkx as nx
 import torch
@@ -79,6 +78,7 @@ class Graph:
 
     def add_triangle(self, node1: int, node2: int, node3: int) -> None:
         nodes = [node1, node2, node3]
+        # FIXME (niklasdewally): check that edge exists and TRIANGLES is set to 0 forall edges.
 
         for i, current_node in enumerate(nodes):
             if TRIANGLES not in self._G.nodes[current_node].keys():
@@ -95,8 +95,18 @@ class Graph:
             # use a sorted ordering so that order does not matter.
             # this will make removal easier!
             triangle_nodes = sorted(x for j, x in enumerate(nodes) if j != i)
-            if not self._G.nodes[current_node][TRIANGLES].__contains__(triangle_nodes):
-                self._G.nodes[current_node][TRIANGLES].append(triangle_nodes)
+            if self._G.nodes[current_node][TRIANGLES].__contains__(triangle_nodes):
+                self._on_change()
+
+                # triangle already exists
+                # FIXME (niklasdewally): more robust solution???
+                return
+
+            self._G.nodes[current_node][TRIANGLES].append(triangle_nodes)
+
+        for u, v in itertools.combinations(nodes, 2):
+            # FIXME (niklasdewally): this assumes the graph is undirected
+            self._G.edges[u, v][TRIANGLES] += 1
 
         self._on_change()
 
@@ -105,6 +115,7 @@ class Graph:
         return Graph(new_g)
 
     def remove_triangle(self, node1: int, node2: int, node3: int) -> None:
+        # FIXME (niklasdewally): ALSO REMOVE FROM EDGES!!
         nodes = [node1, node2, node3]
         triangle_exists = False
         for i, current_node in enumerate(nodes):
@@ -153,6 +164,16 @@ class Graph:
                 triangles.append(triangle)
 
         return triangles
+
+    def get_edge_triangle_counts(self) -> np.ndarray:
+        # TODO (niklasdewally): docstring
+        triangle_counts = nx.get_edge_attributes(self._G, TRIANGLES)
+
+        lst = []
+        for (u, v), count in triangle_counts.items():
+            lst.append([u, v, count])
+
+        return np.array(lst)
 
     def edge_subgraph(self, edges: list[tuple[int, int]]) -> "Graph":
         """
@@ -240,7 +261,7 @@ class Graph:
         return new_g
 
     def mine_triangles(self) -> None:
-        self._reset_triangles()
+        self._init_triangles_store()
         # https://stackoverflow.com/questions/1705824/finding-cycle-of-3-nodes-or-triangles-in-a-graph
         all_cliques: list[int] = nx.enumerate_all_cliques(self._G)
 
@@ -276,44 +297,55 @@ class Graph:
         """
         Sample n triangles that do not exist in the graph.
 
-        For any three nodes A B C, these include the triads:
-            * A, B, C
-            * A, B <-> C
-            * A <-> B <-> C
-
         If there are less than n negative triangles, all the negative triangles found will be returned.
 
 
-        This function caches triad information once generated, so may be slow on first run, but faster subsequent times.
         """
 
-        if self.triads_by_type is None:
-            self._generate_triads_by_type()
+        MAX_K = 4
 
-        # pyre-ignore[16]
-        # A B C
-        disconnected_triads = [list(g) for g in self.triads_by_type["033"]]
-
-        # A -> B -> C
-        open_triangles = [list(g) for g in self.triads_by_type["201"]]
-
-        # A -> B , C
-        pair_and_node = [list(g) for g in self.triads_by_type["102"]]
-
-        all_non_triangles: list[list[int]] = list(
-            itertools.chain.from_iterable(
-                [disconnected_triads, open_triangles, pair_and_node]
+        if not self.has_mined_triangles():
+            raise ValueError(
+                "This graph has no mined triangles - generate them using mine_triangles()"
             )
-        )
 
-        return sample(all_non_triangles, min(len(all_non_triangles), n))
+        triangle_counts = self.get_edge_triangle_counts()
+        triangle_counts = triangle_counts[np.argsort(triangle_counts[:, 2])]
+
+        negative_triangles = []
+
+        for edge_idx in range(triangle_counts.shape[0]):
+            if n == 0:
+                return negative_triangles
+
+            u = triangle_counts[edge_idx, 0]
+            v = triangle_counts[edge_idx, 1]
+
+            # aim to find close nodes to u that are not directly connected
+            k_hop_neighbors = list()
+            for distance, neighbors in enumerate(nx.bfs_layers(self._G, u)):
+                if distance > 1:
+                    k_hop_neighbors.extend(neighbors)
+
+                if distance == MAX_K:
+                    break
+
+            if len(k_hop_neighbors) > 0:
+                w = choice(k_hop_neighbors)
+                negative_triangles.append([int(u), int(v), int(w)])
+                n -= 1
+
+        return negative_triangles
 
     def _generate_triads_by_type(self) -> None:
         self.triads_by_type = nx.triads_by_type(self._G.to_directed())
 
-    def _reset_triangles(self) -> None:
+    def _init_triangles_store(self) -> None:
         for node in self._G.nodes:
             self._G.nodes[node][TRIANGLES] = list()
+
+        for u, v in self._G.edges:
+            self._G.edges[u, v][TRIANGLES] = 0
 
         self._on_change()
 

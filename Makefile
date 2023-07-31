@@ -1,7 +1,8 @@
-MAKEFLAGS += -j2 # do things in parallel
-#################################################################################
-# GLOBALS                                                                       #
-#################################################################################
+#MAKEFLAGS += -j2 # do things in parallel
+
+#################################################
+#                    GLOBALS                    #
+#################################################
 
 PYTHON := poetry run python3
 
@@ -15,7 +16,7 @@ all: dl prepare-triangle-detection generate-data
 
 .PHONY: prepare-triangle-detection
 ## Generate negative samples for triangle detection tasks
-prepare-triangle-detection: data/processed/core-periphery
+prepare-triangle-detection: data/negative-triangles/core-periphery
 
 .PHONY: generate-data
 ## Generate synthetic graphs.
@@ -30,6 +31,7 @@ dl: data/raw/coauthor-cs.npz data/raw/coauthor-phy.npz
 clean:
 	rm -rf data/processed/*
 	rm -rf data/raw/*
+	rm -rf data/negative-triangles/*
 
 .PHONY: full-clean
 ## Clean, including generated datasets
@@ -49,7 +51,7 @@ data/generated/clustered: scripts/generate-data/generate_clustered_dataset.py
 
 
 # Sample negative triangles for triangle detection task
-data/processed/core-periphery: scripts/pre-processing/negative-triangles.py data/generated/core-periphery
+data/negative-triangles/core-periphery: scripts/pre-processing/negative-triangles.py data/generated/core-periphery
 	mkdir -p $@
 	$(PYTHON) $^ $@
 
