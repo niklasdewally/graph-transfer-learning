@@ -34,8 +34,9 @@ DATA_DIR: pathlib.Path = PROJECT_DIR / "data" / "2023-08-clustered"
 ##############################
 
 default_config: MutableMapping = {
-    "sizes": [250, 1000, 10000],
+    "sizes": [250, 1000, 10000, 100000],
     "models": ["graphsage", "egi", "triangle"],
+    "n_runs": 5,
 }
 
 current_date_time: str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -52,38 +53,41 @@ def main() -> int:
     for model in default_config["models"]:
         for source_size in default_config["sizes"]:
             for target_size in default_config["sizes"]:
-                wandb.init(
-                    project="August 2023 01 - Triangle Detection",
-                    entity="sta-graph-transfer-learning",
-                    group=f"{current_date_time}",
-                    config=default_config,
-                    name=f"{model} {source_size}->{target_size}",
-                )
+                for i in default_config["n_runs"]:
+                    wandb.init(
+                        project="August 2023 01 - Triangle Detection",
+                        entity="sta-graph-transfer-learning",
+                        group=f"{current_date_time}",
+                        config=default_config,
+                        name=f"{model} {source_size}->{target_size} {i}",
+                    )
 
-                wandb.config["source_size"] = source_size
-                wandb.config["target_size"] = target_size
-                wandb.config["model"] = model
+                    wandb.config["source_size"] = source_size
+                    wandb.config["target_size"] = target_size
+                    wandb.config["model"] = model
 
-                model_config = gtl.load_model_config(HYPERPARAMS_DIR, model)
-                wandb.config.update(model_config)
+                    model_config = gtl.load_model_config(HYPERPARAMS_DIR, model)
+                    wandb.config.update(model_config)
 
-                do_run()
+                    do_run()
 
-                wandb.finish()
+                    wandb.finish()
     return 0
 
 
-def do_run() -> None:
+def do_run(eval_mode: str = "test") -> None:
     # load data
 
     _a, _b = _load_graphs(wandb.config["source_size"])
     source_graph = _a[0]
+    val_graph = _a[1]
     source_neg_triangles = _b[0]
+    val_neg_triangles = _b[1]
     del _a, _b
 
     target_graphs, target_neg_triangles = _load_graphs(wandb.config["target_size"])
-    target_graphs = target_graphs[1:]
-    target_neg_triangles = target_neg_triangles[1:]
+    target_graphs = target_graphs[2:]
+    target_neg_triangles = target_neg_triangles[2:]
 
     # Train encoder on a single source graph
     print(wandb.config["source_size"])
@@ -92,15 +96,13 @@ def do_run() -> None:
     # Train triangle prediction
 
     features = gtl.features.degree_bucketing(
-        target_graphs[0].as_dgl_graph(device), wandb.config["hidden_layers"]
+        source_graph.as_dgl_graph(device), wandb.config["hidden_layers"]
     ).to(device)
 
-    embs = (
-        encoder(target_graphs[0].as_dgl_graph(device), features).detach().cpu().numpy()
-    )
+    embs = encoder(source_graph.as_dgl_graph(device), features).detach().cpu().numpy()
 
-    neg_triangles = np.array(target_neg_triangles[0])
-    all_pos_triangles = target_graphs[0].get_triangles_list()
+    neg_triangles = np.array(source_neg_triangles)
+    all_pos_triangles = source_graph.get_triangles_list()
     pos_triangles = np.array(
         sample(
             all_pos_triangles,
@@ -118,23 +120,53 @@ def do_run() -> None:
     classifier = SGDClassifier(max_iter=1000)
     classifier = classifier.fit(triangles, classes)
 
-    # Test triangle prediction on all target graphs, and keep the average
-    wandb.define_metric("acc", summary="mean")
+    if eval_mode == "test":
+        # Test triangle prediction on all target graphs, and keep the average
+        wandb.define_metric("acc", summary="mean")
 
-    for i in range(1, len(target_graphs)):
-        target_graph = target_graphs[i]
+        for i in range(len(target_graphs)):
+            target_graph = target_graphs[i]
 
+            features = gtl.features.degree_bucketing(
+                target_graph.as_dgl_graph(device), wandb.config["hidden_layers"]
+            ).to(device)
+
+            embs = (
+                encoder(target_graph.as_dgl_graph(device), features)
+                .detach()
+                .cpu()
+                .numpy()
+            )
+
+            neg_triangles = np.array(target_neg_triangles[i])
+
+            all_pos_triangles = target_graph.get_triangles_list()
+
+            pos_triangles = np.array(
+                sample(
+                    all_pos_triangles,
+                    min(len(all_pos_triangles), neg_triangles.shape[0]),
+                )
+            )
+
+            triangles = np.concatenate((pos_triangles, neg_triangles))
+            triangles = _embed_triangles(triangles, embs)
+            classes = np.concatenate(
+                (np.ones(pos_triangles.shape[0]), np.zeros(neg_triangles.shape[0]))
+            )
+
+            wandb.summary["acc"] = classifier.score(triangles, classes)
+
+    elif eval_mode == "validate":
         features = gtl.features.degree_bucketing(
-            target_graph.as_dgl_graph(device), wandb.config["hidden_layers"]
+            val_graph.as_dgl_graph(device), wandb.config["hidden_layers"]
         ).to(device)
 
-        embs = (
-            encoder(target_graph.as_dgl_graph(device), features).detach().cpu().numpy()
-        )
+        embs = encoder(val_graph.as_dgl_graph(device), features).detach().cpu().numpy()
 
-        neg_triangles = np.array(target_neg_triangles[i])
+        neg_triangles = np.array(val_neg_triangles)
 
-        all_pos_triangles = target_graph.get_triangles_list()
+        all_pos_triangles = val_graph.get_triangles_list()
 
         pos_triangles = np.array(
             sample(
