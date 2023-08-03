@@ -44,6 +44,7 @@ def train_egi_encoder(
     min_delta: float = 0.01,
     wandb_enabled: bool = True,
     wandb_summary_prefix: str = "",
+    **kwargs,  # pyre-ignore:2
 ) -> Union[Callable[[dgl.DGLGraph, torch.Tensor], torch.Tensor], nn.Module]:
     """
     Train an EGI [1] graph encoder.

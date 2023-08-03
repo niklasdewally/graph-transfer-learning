@@ -39,6 +39,7 @@ def train_graphsage_encoder(
     min_delta: float = 0.01,
     weight_decay: float = 0.0,
     wandb_summary_prefix: str = "",
+    **kwargs,  # pyre-ignore[2]
 ):
     if k < 1:
         raise ValueError("k must be 1 or greater.")

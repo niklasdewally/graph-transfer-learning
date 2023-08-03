@@ -51,7 +51,7 @@ class Graph:
         """
         Return the graph, in networkx format.
         """
-        return self._G
+        return self._G.copy().to_undirected()
 
     def as_dgl_graph(self, device: torch.device) -> dgl.DGLGraph:
         if self._dgl_g is not None:

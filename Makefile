@@ -14,46 +14,48 @@ PYTHON := poetry run python3
 ## Run all experiment perparation tasks
 all: dl prepare-triangle-detection generate-data
 
-.PHONY: prepare-triangle-detection
-## Generate negative samples for triangle detection tasks
-prepare-triangle-detection: data/negative-triangles/core-periphery
+.PHONY: aug23-generate-data
+## Generate synthetic graphs and sample negative triangles dataset for August 23 experiments. 
+## Use the pregenerated dataset (dl-aug23) if possible for reproducibility.
+generate-data: data/generated/2023-08-clustered
 
-.PHONY: generate-data
-## Generate synthetic graphs.
-generate-data: data/generated/core-periphery data/generated/clustered
+.PHONY: dl-coauthor
+## Download raw coauthor datasets
+dl-coauthor: data/raw/coauthor-cs.npz data/raw/coauthor-phy.npz
 
-.PHONY: dl
-## Download raw datasets
-dl: data/raw/coauthor-cs.npz data/raw/coauthor-phy.npz
+.PHONY: dl-aug23
+## Download input synthetic graphs for August 2023 experiments.
+dl-aug23: data/2023-08-clustered
 
 .PHONY: clean
-## Clean, excluding generated datasets
+## Clean all data directories
 clean:
 	rm -rf data/processed/*
 	rm -rf data/raw/*
-	rm -rf data/negative-triangles/*
-
-.PHONY: full-clean
-## Clean, including generated datasets
-full-clean: clean
+	rm -rf data/2023-08-clustered
 	rm -rf data/generated/*
+
 
 ###############################################
 #                    RULES                    #
 ###############################################
 
-# Generate
-data/generated/core-periphery: scripts/generate-data/generate_core_periphery_dataset.py
-	$(PYTHON) $< $@
-
-data/generated/clustered: scripts/generate-data/generate_clustered_dataset.py
-	$(PYTHON) $< $@
-
-
-# Sample negative triangles for triangle detection task
-data/negative-triangles/core-periphery: scripts/pre-processing/negative-triangles.py data/generated/core-periphery
+# graph generation is for creating .tar.gz stored on the website only.
+# most of the time, use the tar on the website for reproducability.
+# use this to regenerate the data inside this tar
+data/generated/2023-08-clustered:
 	mkdir -p $@
-	$(PYTHON) $^ $@
+	# disable limits on cpu-time; memory
+	ulimit -t hard &&\
+	ulimit -v hard &&\
+	$(PYTHON) scripts/generate-data/generate_2023_08_clustered.py $@ &&\
+	$(PYTHON) scripts/pre-processing/negative-triangles.py $@ $@
+
+
+AUG_TAR_URL = https://niklas.dewally.com/files/staris-gtl/2023-08-03-clustered-graphs.tar.gz
+data/2023-08-clustered:
+	mkdir -p $@
+	curl -L "$(AUG_TAR_URL)" | tar xf - -C $@
 
 # Download raw coauthor datasets from
 # https://github.com/shchur/gnn-benchmark
