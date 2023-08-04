@@ -53,7 +53,7 @@ def main() -> int:
     for model in default_config["models"]:
         for source_size in default_config["sizes"]:
             for target_size in default_config["sizes"]:
-                for i in default_config["n_runs"]:
+                for i in range(default_config["n_runs"]):
                     wandb.init(
                         project="August 2023 01 - Triangle Detection",
                         entity="sta-graph-transfer-learning",

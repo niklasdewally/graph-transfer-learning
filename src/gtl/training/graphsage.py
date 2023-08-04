@@ -62,7 +62,7 @@ def train_graphsage_encoder(
         case e:
             raise ValueError(f"{e} is not a valid feature generation mode")
 
-    dgl_graph.ndata["feat"] = features
+    dgl_graph.ndata["feat"] = features.to(device)
 
     sampler: dgl.dataloading.Sampler = dgl.dataloading.NeighborSampler(
         [10 for i in range(k)], prefetch_node_feats=["feat"]
