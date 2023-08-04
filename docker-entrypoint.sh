@@ -10,6 +10,6 @@ export LD_LIBRARY_PATH=/usr/local/cuda-11.7/targets/x86_64-linux/lib/${LD_LIBRAR
 export CUDA_HOME=/usr/local/cuda-11.7
 
 
-poetry install --without cpu --with cuda
+poetry install 
 # pass through executable
 poetry run --  $@
