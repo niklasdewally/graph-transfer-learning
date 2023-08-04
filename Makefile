@@ -55,7 +55,7 @@ data/generated/2023-08-clustered:
 AUG_TAR_URL = https://niklas.dewally.com/files/staris-gtl/2023-08-03-clustered-graphs.tar.gz
 data/2023-08-clustered:
 	mkdir -p $@
-	curl -L "$(AUG_TAR_URL)" | tar xf - -C $@
+	curl -L "$(AUG_TAR_URL)" | tar -xzf - -C $@
 
 # Download raw coauthor datasets from
 # https://github.com/shchur/gnn-benchmark
