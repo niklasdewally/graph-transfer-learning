@@ -4,7 +4,14 @@ import wandb
 import datetime
 
 MAX_RUNS_PER_MODEL = 50
-MODELS = ["graphsage", "egi", "triangle"]
+MODELS = [
+    "graphsage-mean",
+    "graphsage-lstm",
+    "graphsage-pool",
+    "graphsage-gcn",
+    "egi",
+    "triangle",
+]
 
 sweep_config = {
     "metric": {"goal": "maximize", "name": "acc"},

@@ -16,7 +16,11 @@ from . import graphsage as _graphsage
 
 
 _model_functions: dict[str, Callable] = {
-    "graphsage": _graphsage.train_graphsage_encoder,
+    "graphsage": partial(_graphsage.train_graphsage_encoder, aggregator="mean"),
+    "graphsage-mean": partial(_graphsage.train_graphsage_encoder, aggregator="mean"),
+    "graphsage-pool": partial(_graphsage.train_graphsage_encoder, aggregator="pool"),
+    "graphsage-gcn": partial(_graphsage.train_graphsage_encoder, aggregator="gcn"),
+    "graphsage-lstm": partial(_graphsage.train_graphsage_encoder, aggregator="lstm"),
     "egi": partial(_egi.train_egi_encoder, sampler_type="egi"),
     "triangle": partial(_egi.train_egi_encoder, sampler_type="triangle"),
 }
@@ -27,7 +31,15 @@ Model = Callable[[DGLGraph, Tensor], Tensor]
 # pyre-ignore[2]:
 def train(model: str, graph: Graph, **kwargs) -> Model:
     """
-    Train the given model.
+    Train the given model using the parameters passed through `**kwargs`.
+
+    Implemented models are:
+        * graphsage-mean / graphsage
+        * graphsage-pool
+        * graphsage-gcn
+        * graphsage-lstm
+        * egi
+        * triangle
     """
     func = _model_functions.get(model)
 

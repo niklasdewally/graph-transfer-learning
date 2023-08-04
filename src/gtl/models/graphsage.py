@@ -21,7 +21,7 @@ from .. import Graph
 
 class SAGEUnsupervised(nn.Module):
     """
-    An unsupervised GraphSAGE mean model.
+    An unsupervised GraphSAGE model.
 
     Designed to be used with the SageLoss loss function class.
 
@@ -34,13 +34,14 @@ class SAGEUnsupervised(nn.Module):
         in_size: int,
         hidden_size: int,
         n_conv_layers: int = 3,
+        aggregator: str = "mean",
     ) -> None:
         super().__init__()
         self.layers = nn.ModuleList()
 
-        self.layers.append(dglnn.SAGEConv(in_size, hidden_size, "mean"))
+        self.layers.append(dglnn.SAGEConv(in_size, hidden_size, aggregator))
         for _ in range(n_conv_layers - 1):
-            self.layers.append(dglnn.SAGEConv(hidden_size, hidden_size, "mean"))
+            self.layers.append(dglnn.SAGEConv(hidden_size, hidden_size, aggregator))
 
         self.hidden_size = hidden_size
 

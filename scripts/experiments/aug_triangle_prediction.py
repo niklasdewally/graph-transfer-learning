@@ -35,7 +35,14 @@ DATA_DIR: pathlib.Path = PROJECT_DIR / "data" / "2023-08-clustered"
 
 default_config: MutableMapping = {
     "sizes": [250, 1000, 10000, 100000],
-    "models": ["graphsage", "egi", "triangle"],
+    "models": [
+        "graphsage-mean",
+        "graphsage-pool",
+        "graphsage-lstm",
+        "graphsage-gcn",
+        "egi",
+        "triangle",
+    ],
     "n_runs": 5,
 }
 

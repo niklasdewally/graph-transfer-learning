@@ -39,6 +39,7 @@ def train_graphsage_encoder(
     min_delta: float = 0.01,
     weight_decay: float = 0.0,
     wandb_summary_prefix: str = "",
+    aggregator: str = "mean",
     **kwargs,  # pyre-ignore[2]
 ):
     if k < 1:
@@ -71,7 +72,7 @@ def train_graphsage_encoder(
     in_feats = features.shape[1]
 
     model = graphsage.SAGEUnsupervised(
-        in_feats, n_hidden_layers, n_conv_layers=k + 1
+        in_feats, n_hidden_layers, n_conv_layers=k + 1, aggregator=aggregator
     ).to(device)
 
     wandb.watch(model)
