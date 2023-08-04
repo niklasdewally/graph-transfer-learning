@@ -28,7 +28,7 @@ def train_graphsage_encoder(
     graph: Graph,
     k: int = 2,
     lr: float = 0.01,
-    n_hidden_layers: int = 32,
+    hidden_layers: int = 32,
     n_epochs: int = 100,
     feature_mode: str = "degree_bucketing",
     features=None,
@@ -57,7 +57,7 @@ def train_graphsage_encoder(
     # generate features
     match feature_mode:
         case "degree_bucketing":
-            features = degree_bucketing(dgl_graph, n_hidden_layers)
+            features = degree_bucketing(dgl_graph, hidden_layers)
         case "none":
             features = features
         case e:
@@ -72,7 +72,7 @@ def train_graphsage_encoder(
     in_feats = features.shape[1]
 
     model = graphsage.SAGEUnsupervised(
-        in_feats, n_hidden_layers, n_conv_layers=k + 1, aggregator=aggregator
+        in_feats, hidden_layers, n_conv_layers=k + 1, aggregator=aggregator
     ).to(device)
 
     wandb.watch(model)

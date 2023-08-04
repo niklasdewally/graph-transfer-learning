@@ -36,12 +36,12 @@ DATA_DIR: pathlib.Path = PROJECT_DIR / "data" / "2023-08-clustered"
 default_config: MutableMapping = {
     "sizes": [250, 1000, 10000, 100000],
     "models": [
+        "egi",
+        "triangle",
         "graphsage-mean",
         "graphsage-pool",
         "graphsage-lstm",
         "graphsage-gcn",
-        "egi",
-        "triangle",
     ],
     "n_runs": 5,
 }
@@ -57,10 +57,12 @@ group = f"{current_date_time}"
 
 
 def main() -> int:
+    # TODO (niklasdewally): replace nested forloops with cartesian product
     for model in default_config["models"]:
         for source_size in default_config["sizes"]:
             for target_size in default_config["sizes"]:
                 for i in range(default_config["n_runs"]):
+                    print(model)
                     wandb.init(
                         project="August 2023 01 - Triangle Detection",
                         entity="sta-graph-transfer-learning",
@@ -83,6 +85,11 @@ def main() -> int:
 
 
 def do_run(eval_mode: str = "test") -> None:
+    if eval_mode not in ["test", "validate"]:
+        raise ValueError(
+            f"Unexpected eval_mode f{eval_mode}, valid evaluation modes are [test,validate]"
+        )
+
     # load data
 
     _a, _b = _load_graphs(wandb.config["source_size"])
@@ -97,11 +104,9 @@ def do_run(eval_mode: str = "test") -> None:
     target_neg_triangles = target_neg_triangles[2:]
 
     # Train encoder on a single source graph
-    print(wandb.config["source_size"])
     encoder = gtl.training.train(graph=source_graph, **wandb.config)
 
     # Train triangle prediction
-
     features = gtl.features.degree_bucketing(
         source_graph.as_dgl_graph(device), wandb.config["hidden_layers"]
     ).to(device)

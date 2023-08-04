@@ -1,19 +1,23 @@
+import datetime
 import sys
 
+from collections.abc import MutableMapping
+from typing import Callable
+
+# pyre-ignore[21]:
+from aug_triangle_prediction import do_run
+
+# pyre-ignore[21]:
 import wandb
-import datetime
 
 MAX_RUNS_PER_MODEL = 50
 MODELS = [
     "graphsage-mean",
-    "graphsage-lstm",
-    "graphsage-pool",
-    "graphsage-gcn",
     "egi",
     "triangle",
 ]
 
-sweep_config = {
+sweep_config: MutableMapping = {
     "metric": {"goal": "maximize", "name": "acc"},
     "method": "random",
     "parameters": {
@@ -28,7 +32,6 @@ sweep_config = {
         "source_size": {"value": 10000},
         "target_size": {"value": 10000},
     },
-    "early_terminate": {"type": "hyperband", "min_iter": 3},
     "run_cap": MAX_RUNS_PER_MODEL,
 }
 
@@ -37,27 +40,26 @@ current_date_time: str = datetime.datetime.now().strftime("%Y-%m-%d (T%H%M)")
 
 
 def main() -> int:
-    from aug_triangle_prediction import do_run
-
     if len(sys.argv) > 1 and sys.argv[1] is not None:
         sweep_id = sys.argv[1]
-        wandb.agent(sweep_id=sweep_id, function=lambda: train(do_run))
+        wandb.agent(sweep_id=sweep_id, function=train)
         return 0
 
     for model in ["graphsage", "egi", "triangle"]:
-        sweep_config.update({"name": f"{model} ({current_date_time})"}),
         sweep_config["parameters"].update({"model": {"value": model}})
 
         sweep_id = wandb.sweep(
-            sweep=sweep_config, project="Aug 2023 Triangle Prediction Sweeps"
+            sweep=sweep_config,
+            project="Aug 2023 Triangle Prediction Sweeps",
+            entity="sta-graph-transfer-learning",
         )
 
-        wandb.agent(sweep_id=sweep_id, function=lambda: train(do_run))
+        wandb.agent(sweep_id=sweep_id, function=train)
 
     return 0
 
 
-def train(do_run) -> None:
+def train() -> None:
     wandb.init()
 
     # to reduce variance, do many runs, and optimise on the average

@@ -30,7 +30,7 @@ def train_egi_encoder(
     gpu: int = -1,
     k: int = 2,
     lr: float = 0.01,
-    n_hidden_layers: int = 32,
+    hidden_layers: int = 32,
     n_epochs: int = 100,
     weight_decay: float = 0.0,
     feature_mode: str = "degree_bucketing",
@@ -168,7 +168,7 @@ def train_egi_encoder(
 
     match feature_mode:
         case "degree_bucketing":
-            features = degree_bucketing(dgl_graph, n_hidden_layers)
+            features = degree_bucketing(dgl_graph, hidden_layers)
         case "none":
             features = features
         case e:
@@ -198,9 +198,9 @@ def train_egi_encoder(
 
     model = EGI(
         in_feats,
-        n_hidden_layers,
+        hidden_layers,
         n_layers,
-        nn.PReLU(n_hidden_layers),
+        nn.PReLU(hidden_layers),
     )
 
     model = model.to(device)

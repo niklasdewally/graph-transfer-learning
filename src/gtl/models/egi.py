@@ -131,6 +131,7 @@ class _SubGDiscriminator(nn.Module):
         self.U_s = nn.Linear(n_hidden, 1)
 
     def forward(self, g, blocks, emb, features):
+
         # reverse all edges
         reverse_edges = []
         # first two elements are in and out nodes
@@ -139,7 +140,7 @@ class _SubGDiscriminator(nn.Module):
             # get edges from the block
             # https://github.com/dmlc/dgl/issues/1450
             us, vs = g.find_edges(block.edata[dgl.EID])
-            reverse_edges += g.edge_ids(vs, us).tolist()
+            reverse_edges.extend(g.edge_ids(vs, us).tolist())
 
         small_g = g.edge_subgraph(reverse_edges)
         small_g.ndata["root"] = emb[small_g.ndata["_ID"]]

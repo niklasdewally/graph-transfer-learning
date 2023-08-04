@@ -62,13 +62,19 @@ def _generate(size: int, clique_size: int) -> nx.Graph:
 
     G: nx.Graph = g.G
 
-    # remove self loops and ensure only keep connected componenet
+    # no self loops
     G.remove_edges_from(nx.selfloop_edges(G))
+
+    # ensure connectivity using greatest connected component
     Gcc = sorted(nx.connected_components(G), key=len, reverse=True)
+    G = G.subgraph(Gcc[0])
+
+    # ensure no parallel edges
+    G = nx.Graph(G)
 
     # ensure consecutive node labels after having removed some nodes
-    g = nx.convert_node_labels_to_integers(G.subgraph(Gcc[0]))
-    return g
+    G = nx.convert_node_labels_to_integers(G)
+    return G
 
 
 if __name__ == "__main__":

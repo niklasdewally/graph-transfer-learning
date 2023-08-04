@@ -33,7 +33,8 @@ class Graph:
 
     @staticmethod
     def from_gml_file(path: PathLike) -> "Graph":
-        g = nx.read_gml(path, destringizer=literal_destringizer)
+        # implicitly remove multiedges by passing to nx.Graph()
+        g = nx.Graph(nx.read_gml(path, destringizer=literal_destringizer))
         return Graph(g)
 
     @staticmethod
@@ -66,7 +67,12 @@ class Graph:
             us = torch.cat((us, torch.tensor([u], device=device)))
             vs = torch.cat((vs, torch.tensor([v], device=device)))
 
-        self._dgl_g = dgl.graph((us, vs), device=device)
+        # Add reverse edges
+        # DGL models undirected graphs as graphs where edge has an associated reverse edge
+        undirectional_us = torch.cat((us,vs))
+        undirectional_vs = torch.cat((vs,us))
+
+        self._dgl_g = dgl.graph((undirectional_us, undirectional_vs), device=device)
 
         return self._dgl_g
 
