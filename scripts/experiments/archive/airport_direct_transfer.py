@@ -63,7 +63,7 @@ default_config: MutableMapping = {
     "n_runs": 10,
     "source-dataset": "europe",
     "target-dataset": "brazil",
-    "models": ["egi", "triangle", "graphsage"],
+    "models": ["egi", "triangle", "graphsage-mean", "graphsage-pool"],
 }
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

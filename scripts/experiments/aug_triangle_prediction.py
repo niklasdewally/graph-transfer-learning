@@ -7,8 +7,7 @@ from typing import Any
 
 import datetime
 import gtl.features
-import gtl.training.egi
-import gtl.training.graphsage
+import gtl.training
 import numpy as np
 import torch
 
@@ -98,19 +97,22 @@ def do_run(eval_mode: str = "test") -> None:
     source_neg_triangles = _b[0]
     val_neg_triangles = _b[1]
     del _a, _b
-    
+
     if eval_mode == "test":
         target_graphs, target_neg_triangles = _load_graphs(wandb.config["target_size"])
         target_graphs = target_graphs[2:]
         target_neg_triangles = target_neg_triangles[2:]
 
     # Train encoder on a single source graph
-    encoder = gtl.training.train(graph=source_graph, **wandb.config)
 
     # Train triangle prediction
     features = gtl.features.degree_bucketing(
         source_graph.as_dgl_graph(device), wandb.config["hidden_layers"]
     ).to(device)
+
+    encoder = gtl.training.train(
+        wandb.config["model"], source_graph, features, wandb.config, device=device
+    )
 
     embs = encoder(source_graph.as_dgl_graph(device), features).detach().cpu().numpy()
 

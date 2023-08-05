@@ -1,87 +1,56 @@
-# FIXME (niklasdewally): strict typing
-# pyre-unsafe
+__all__ = ["train"]
+
 
 # pyre-ignore[21]
-import wandb
 import tempfile
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Callable
 
-from dgl.dataloading import DataLoader
 import dgl
 import torch
+import wandb
+from dgl.dataloading import DataLoader
+from torch import Tensor
+from torch import device as Device
 from tqdm import tqdm
 
 from .. import Graph
-from .. import typing as gtl_typing
-from ..features import degree_bucketing
 from ..models import graphsage as graphsage
 
-__all__ = ["train_graphsage_encoder"]
 
-from IPython import embed
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-
-def train_graphsage_encoder(
+def train(
     graph: Graph,
-    k: int = 2,
-    lr: float = 0.01,
-    hidden_layers: int = 32,
-    n_epochs: int = 100,
-    feature_mode: str = "degree_bucketing",
-    features=None,
-    pre_train: gtl_typing.PathLike = "",
-    save_weights_to: gtl_typing.PathLike = "",
-    batch_size: int = 50,
-    patience: int = 10,
-    min_delta: float = 0.01,
-    weight_decay: float = 0.0,
-    wandb_summary_prefix: str = "",
-    aggregator: str = "mean",
-    **kwargs,  # pyre-ignore[2]
+    features: Tensor,
+    device: Device,
+    config: Mapping,
+    aggregator: str,
 ):
-    if k < 1:
-        raise ValueError("k must be 1 or greater.")
-
-    if lr <= 0:
-        raise ValueError("Learning rate must be above 0.")
-
     dgl_graph: dgl.DGLGraph = graph.as_dgl_graph(device)
+    dgl_graph.ndata["feat"] = features.to(device)
 
     # setup temporary directory for saving models for early-stopping
     temporary_directory = tempfile.TemporaryDirectory()
     early_stopping_filepath = Path(temporary_directory.name, "stopping.pt")
 
-    # generate features
-    match feature_mode:
-        case "degree_bucketing":
-            features = degree_bucketing(dgl_graph, hidden_layers)
-        case "none":
-            features = features
-        case e:
-            raise ValueError(f"{e} is not a valid feature generation mode")
-
-    dgl_graph.ndata["feat"] = features.to(device)
-
     sampler: dgl.dataloading.Sampler = dgl.dataloading.NeighborSampler(
-        [10 for i in range(k)], prefetch_node_feats=["feat"]
+        [10 for i in range(config["k"])], prefetch_node_feats=["feat"]
     )
 
     in_feats = features.shape[1]
 
     model = graphsage.SAGEUnsupervised(
-        in_feats, hidden_layers, n_conv_layers=k + 1, aggregator=aggregator
+        in_feats,
+        config["hidden_layers"],
+        n_conv_layers=config["k"] + 1,
+        aggregator=aggregator,
     ).to(device)
 
     wandb.watch(model)
 
-    # do transfer learning if we have pretrained weights
-    if pre_train != "":
-        model.load_state_dict(torch.load(pre_train), strict=False)
+    if config["load_weights_from"] is not None:
+        model.load_state_dict(torch.load(config["load_weights_from"]), strict=False)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"], weight_decay=0.0)
 
     # test train split
     indexes = torch.randperm(dgl_graph.nodes().shape[0]).to(device)
@@ -96,7 +65,7 @@ def train_graphsage_encoder(
         dgl_graph,
         train_nodes,
         sampler,
-        batch_size=batch_size,
+        batch_size=config["batch_size"],
         shuffle=True,
         device=device,
     )
@@ -104,7 +73,7 @@ def train_graphsage_encoder(
         dgl_graph,
         val_nodes,
         sampler,
-        batch_size=batch_size,
+        batch_size=config["batch_size"],
         shuffle=True,
         device=device,
     )
@@ -113,7 +82,8 @@ def train_graphsage_encoder(
     best = 1e9
     best_epoch = -1
 
-    for epoch in tqdm(range(n_epochs)):
+    print("Training!")
+    for epoch in tqdm(range(config["n_epochs"])):
         log = dict()
 
         loss = 0.0
@@ -149,7 +119,7 @@ def train_graphsage_encoder(
             optimizer.step()
             loss += l
 
-        log.update({f"{wandb_summary_prefix}-training-loss": loss})
+        log.update({f"{config['wandb_summary_prefix']}-training-loss": loss})
 
         # VALIDATE
         model.eval()
@@ -165,27 +135,29 @@ def train_graphsage_encoder(
 
             loss += l.item()
 
-        log.update({f"{wandb_summary_prefix}-validation-loss": loss})
+        log.update({f"{config['wandb_summary_prefix']}-validation-loss": loss})
         wandb.log(log)
 
         # early stopping
-        if loss <= best + min_delta:
+        if loss <= best + config["min_delta"]:
             best = loss
             best_epoch = epoch
             # save current weights
             torch.save(model.state_dict(), early_stopping_filepath)
 
-        if epoch - best_epoch > patience:
+        if epoch - best_epoch > config["patience"]:
             print("Early stopping!")
             model.load_state_dict(torch.load(early_stopping_filepath))
-            wandb.summary[f"{wandb_summary_prefix}-early-stopping-epoch"] = best_epoch
+            wandb.summary[
+                f"{config['wandb_summary_prefix']}-early-stopping-epoch"
+            ] = best_epoch
             break
 
     # save parameters for later fine-tuning if a save path is given
-    if save_weights_to != "":
-        print(f"Saving model parameters to {str(save_weights_to)}")
+    if config["save_weights_to"] is not None:
+        print(f"Saving model parameters to {config['save_weights_to']}")
 
-        torch.save(model.state_dict(), save_weights_to)
+        torch.save(model.state_dict(), config["save_weights_to"])
 
     model.eval()
 
@@ -193,7 +165,7 @@ def train_graphsage_encoder(
     temporary_directory.cleanup()
 
     def encoder(g, features):
-        sampler = dgl.dataloading.MultiLayerFullNeighborSampler(k)
+        sampler = dgl.dataloading.MultiLayerFullNeighborSampler(config["k"])
         (inp, out, blocks) = sampler.sample(g, g.nodes())
 
         return model(blocks, features[blocks[0].srcdata[dgl.NID]])
