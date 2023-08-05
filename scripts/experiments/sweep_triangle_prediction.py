@@ -29,8 +29,8 @@ sweep_config: MutableMapping = {
         "patience": {"value": 25},
         "min_delta": {"value": 0.01},
         "epochs": {"value": 100},
-        "source_size": {"value": 10000},
-        "target_size": {"value": 10000},
+        "source_size": {"value": 1000},
+        "target_size": {"value": 1000},
     },
     "run_cap": MAX_RUNS_PER_MODEL,
 }
