@@ -52,7 +52,7 @@ data/generated/2023-08-clustered:
 	$(PYTHON) scripts/pre-processing/negative-triangles.py $@ $@
 
 
-AUG_TAR_URL = https://niklas.dewally.com/files/staris-gtl/2023-08-03-clustered-graphs.tar.gz
+AUG_TAR_URL = https://niklas.dewally.com/files/staris-gtl/2023-08-04-poisson-graphs.tar.gz
 data/2023-08-clustered:
 	mkdir -p $@
 	curl -L "$(AUG_TAR_URL)" | tar -xzf - -C $@
