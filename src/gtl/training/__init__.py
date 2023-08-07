@@ -14,7 +14,7 @@ from torch import Tensor
 from torch import device as Device
 
 from .. import Graph
-from . import _egi, _graphsage
+from . import _egi, _graphsage, _dgi
 
 Model = Callable[[DGLGraph, Tensor], Tensor]
 TrainFunc = Callable[[Graph, Tensor, Device, Mapping], Model]
@@ -27,6 +27,7 @@ _model_functions: dict[str, TrainFunc] = {
     "graphsage-lstm": partial(_graphsage.train, aggregator="lstm"),
     "egi": partial(_egi.train, sampler_type="egi"),
     "triangle": partial(_egi.train, sampler_type="triangle"),
+    "dgi": _dgi.train
 }
 
 
@@ -37,8 +38,8 @@ def train(
     Using `graph` and `features`, train an instance of the given model.
 
     The model is trained in an unsupervised manner, producing a set of
-    node-embeddings to be used as input for downstream models like
-    classifier.
+    node-embeddings to be used as input for downstream models such as
+    a classifier.
 
     Args:
 
@@ -51,6 +52,7 @@ def train(
                 * graphsage-lstm
                 * egi
                 * triangle
+                * dgi (Deep Graph Infomax)
 
         graph: The graph to use for training, in gtl format.
 
