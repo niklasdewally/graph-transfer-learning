@@ -31,16 +31,21 @@ This has been tested on Ubuntu and a GTX 3060 card only.
 First, build the container:
 
 ```
-docker build . -t graph-transfer-learning/devel
+docker build --build-arg local_uid=$(id -u) --build-arg local_user=$USER -t graph-transfer-learning/devel .
 ```
 
 Then, run the container:
 
 ```
-docker run -it --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --runtime=nvidia -v "$(pwd):/workspace" graph-transfer-learning/devel
+docker run --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --runtime=nvidia --rm -it --user $(id -u):$(id -g) -v "$(pwd):/home/$(whoami)/workspace" graph-transfer-learning/devel bash
 ```
 
-The repository on your local system will be mounted to the `/workspace/` folder in the container.
+The local filesystem will be mounted to the `workspace/` folder in the container.
+
+
+Note that the user inside the container has  the same user name and id as the user who launched the container on the host system. This is because of https://github.com/niklasdewally/graph-transfer-learning/issues/2. 
+
+To access root commands inside the container, use `sudo`.
 
 ## Poetry
 
