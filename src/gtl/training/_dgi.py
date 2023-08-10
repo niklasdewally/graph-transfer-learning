@@ -5,7 +5,7 @@ from pathlib import Path
 import dgl
 import torch
 import torch.nn as nn
-import tqdm
+from tqdm import tqdm
 import wandb  # pyre-ignore[21]:
 from torch import Tensor
 from torch import device as Device
@@ -23,7 +23,6 @@ def train(graph: Graph, features: Tensor, device: Device, config: Mapping):
     features = features.to(device)
 
     model = DGI(
-        dgl_graph,
         features.shape[1],
         config["hidden_layers"],
         config["k"] + 1,
@@ -61,22 +60,9 @@ def train(graph: Graph, features: Tensor, device: Device, config: Mapping):
         model.train()
         optimizer.zero_grad()
 
-        # the sampler returns a list of blocks and involved nodes
-        # each block holds a set of edges from a source to destination
-        # each block is a hop in the graph
-        sampler = dgl.dataloading.MultiLayerFullNeighborSampler(config["k"])
-        for blocks in dgl.dataloading.DataLoader(
-            dgl_graph,
-            train_nodes,
-            sampler,
-            batch_size=config["batch_size"],
-            shuffle=True,
-            device=device,
-        ):
-            batch_loss = model(dgl_graph, features, blocks)
-            batch_loss.backward()
-            optimizer.step()
-            loss += batch_loss
+        loss = model(dgl_graph, features)
+        loss.backward()
+        optimizer.step()
 
         log.update({f"{config['wandb_summary_prefix']}-training-loss": loss})
 
@@ -84,8 +70,7 @@ def train(graph: Graph, features: Tensor, device: Device, config: Mapping):
 
         model.eval()
         loss = 0.0
-        blocks = sampler.sample(dgl_graph, val_nodes)
-        loss = model(dgl_graph, features, blocks)
+        loss = model(dgl_graph, features)
 
         log.update({f"{config['wandb_summary_prefix']}-validation-loss": loss})
 
