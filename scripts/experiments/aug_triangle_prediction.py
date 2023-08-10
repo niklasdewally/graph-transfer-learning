@@ -33,16 +33,12 @@ DATA_DIR: pathlib.Path = PROJECT_DIR / "data" / "2023-08-clustered"
 ##############################
 
 default_config: MutableMapping = {
-    "sizes": [250, 1000, 10000, 100000],
+    #"sizes": [250, 1000, 10000, 100000],
+    "sizes": [250],
     "models": [
-        "egi",
-        "triangle",
-        "graphsage-mean",
-        "graphsage-pool",
-        "graphsage-lstm",
-        "graphsage-gcn",
+        "dgi"
     ],
-    "n_runs": 5,
+    "n_runs": 1,
 }
 
 current_date_time: str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
