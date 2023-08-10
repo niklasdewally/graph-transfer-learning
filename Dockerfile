@@ -11,7 +11,7 @@ RUN usermod -aG sudo ${local_user}
 
 RUN apt update && \
     apt upgrade -y && \
-    apt install -y python3.11 python3-pip python3.11-dev curl git
+    apt install -y python3.11 python3-pip python3.11-dev curl git sudo
 
 
 RUN mkdir -p /home/${local_user}/workspace
