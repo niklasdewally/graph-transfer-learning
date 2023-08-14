@@ -33,7 +33,9 @@ class GraphGenerationScript:
     The --verbose, --dry-run and --overwrite flags are optional.
 
 
-    The GraphGenerationStrategy passed in is expected to return a tuple of (filename,nx graph).
+    The GraphGenerationStrategy passed in must be an iterator that returns a tuple of (filename , NetworkX Graph).
+
+    The script is executed through the .run() method.
     """
 
     def __init__(self, generation_strategy: GraphGenerationStrategy) -> None:
