@@ -1,10 +1,14 @@
-#MAKEFLAGS += -j2 # do things in parallel
+MAKEFLAGS += -j2 # do things in parallel
 
 #################################################
 #                    GLOBALS                    #
 #################################################
 
 PYTHON := poetry run python3
+
+# Datasets
+POISSON_TAR_URL = https://niklas.dewally.com/files/staris-gtl/2023-08-04-poisson-graphs.tar.gz
+POWERLAW_TAR_URL = https://niklas.dewally.com/files/staris-gtl/2023-08-14-powerlaw-graphs.tar.gz
 
 ########################################################
 #                    PHONY COMMANDS                    #
@@ -14,10 +18,15 @@ PYTHON := poetry run python3
 ## Run all experiment perparation tasks
 all: dl prepare-triangle-detection generate-data
 
-.PHONY: aug23-generate-data
+.PHONY: aug23-generate-poisson
 ## Generate synthetic graphs and sample negative triangles dataset for August 23 experiments. 
 ## Use the pregenerated dataset (dl-aug23) if possible for reproducibility.
-generate-data: data/generated/2023-08-clustered
+aug23-generate-poisson: data/generated/2023-08-poisson
+
+.PHONY: aug23-generate-powerlaw
+## Generate synthetic graphs and sample negative triangles dataset for August 23 experiments. 
+## Use the pregenerated dataset (dl-aug23) if possible for reproducibility.
+aug23-generate-powerlaw: data/generated/2023-08-powerlaw
 
 .PHONY: dl-coauthor
 ## Download raw coauthor datasets
@@ -25,14 +34,15 @@ dl-coauthor: data/raw/coauthor-cs.npz data/raw/coauthor-phy.npz
 
 .PHONY: dl-aug23
 ## Download input synthetic graphs for August 2023 experiments.
-dl-aug23: data/2023-08-clustered
+dl-aug23: data/2023-08-poisson
 
 .PHONY: clean
 ## Clean all data directories
 clean:
 	rm -rf data/processed/*
 	rm -rf data/raw/*
-	rm -rf data/2023-08-clustered
+	rm -rf data/2023-08-poisson
+	rm -rf data/2023-08-powerlaw
 	rm -rf data/generated/*
 
 
@@ -43,7 +53,7 @@ clean:
 # graph generation is for creating .tar.gz stored on the website only.
 # most of the time, use the tar on the website for reproducability.
 # use this to regenerate the data inside this tar
-data/generated/2023-08-clustered:
+data/generated/2023-08-poisson:
 	mkdir -p $@
 	# disable limits on cpu-time; memory
 	ulimit -t hard &&\
@@ -51,11 +61,18 @@ data/generated/2023-08-clustered:
 	$(PYTHON) scripts/generate-data/generate_2023_08_clustered.py $@ &&\
 	$(PYTHON) scripts/pre-processing/negative-triangles.py $@ $@
 
-
-AUG_TAR_URL = https://niklas.dewally.com/files/staris-gtl/2023-08-04-poisson-graphs.tar.gz
-data/2023-08-clustered:
+data/generated/2023-08-powerlaw:
 	mkdir -p $@
-	curl -L "$(AUG_TAR_URL)" | tar -xzf - -C $@
+	$(PYTHON) scripts/generate-data/generate_2023_08_powerlaw.py $@ &&\
+	$(PYTHON) scripts/pre-processing/negative-triangles.py $@ $@
+
+data/2023-08-poisson:
+	mkdir -p $@
+	curl -L "$(POISSON_TAR_URL)" | tar -xzf - -C $@
+
+data/2023-08-powerlaw:
+	mkdir -p $@
+	curl -L "$(POWERLAW_TAR_URL)" | tar -xzf - -C $@
 
 # Download raw coauthor datasets from
 # https://github.com/shchur/gnn-benchmark

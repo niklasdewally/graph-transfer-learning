@@ -26,7 +26,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 SCRIPT_DIR: pathlib.Path = pathlib.Path(__file__).parent.resolve()
 PROJECT_DIR: pathlib.Path = SCRIPT_DIR.parent.parent.resolve()
 HYPERPARAMS_DIR: pathlib.Path = SCRIPT_DIR / "aug_triangle_detection_hyperparams"
-DATA_DIR: pathlib.Path = PROJECT_DIR / "data" / "2023-08-clustered"
+DATA_DIR: pathlib.Path = PROJECT_DIR / "data" / "2023-08-poisson"
 
 ##############################
 #        WANDB CONFIG        #
