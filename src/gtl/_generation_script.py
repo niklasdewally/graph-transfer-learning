@@ -28,6 +28,11 @@ class GraphGenerationScript:
 
     The graph mining and saving is performed concurrently.
 
+
+    The first (and only) positional argument must be a directory to save the generated graphs to.
+    The --verbose, --dry-run and --overwrite flags are optional.
+
+
     The GraphGenerationStrategy passed in is expected to return a tuple of (filename,nx graph).
     """
 
