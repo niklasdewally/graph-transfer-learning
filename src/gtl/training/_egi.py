@@ -82,8 +82,14 @@ def train(
     val_nodes = torch.split(dgl_graph.nodes()[indexes], validation_size)[0]
     train_nodes = torch.unique(torch.cat([val_nodes, dgl_graph.nodes()]))
 
-
-    training_dataloader = DataLoader(dgl_graph,train_nodes,sampler,batch_size=config["batch_size"],shuffle=True,device=device)
+    training_dataloader = DataLoader(
+        dgl_graph,
+        train_nodes,
+        sampler,
+        batch_size=config["batch_size"],
+        shuffle=True,
+        device=device,
+    )
 
     for epoch in tqdm(range(config["n_epochs"])):
         log = dict()
@@ -106,6 +112,8 @@ def train(
 
         log.update({f"{config['wandb_summary_prefix']}-training-loss": loss})
 
+        del batch_loss, loss, blocks
+
         # VALIDATION
 
         model.eval()
@@ -123,6 +131,8 @@ def train(
             best_epoch = epoch
             # save current weights
             torch.save(model.state_dict(), early_stopping_filepath)
+
+        del loss, blocks
 
         if epoch - best_epoch > config["patience"]:
             print("Early stopping!")
