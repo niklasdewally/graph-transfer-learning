@@ -55,9 +55,6 @@ clean:
 # use this to regenerate the data inside this tar
 data/generated/2023-08-poisson:
 	mkdir -p $@
-	# disable limits on cpu-time; memory
-	ulimit -t hard &&\
-	ulimit -v hard &&\
 	$(PYTHON) scripts/generate-data/generate_2023_08_clustered.py $@ &&\
 	$(PYTHON) scripts/pre-processing/negative-triangles.py $@ $@
 

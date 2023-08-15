@@ -88,7 +88,7 @@ def generate_graph(size: int, clique_size: int) -> nx.Graph:
     params = {}
     params[JointDegreeNames.MOTIF_SIZES] = [2, clique_size]
     params[JointDegreeNames.ARR_FP] = [power_law(edge_coeff), power_law(motif_coeff)]
-    params[JointDegreeNames.LOW_HIGH_DEGREE_BOUND] = [(0, 20), (0, 10)]
+    params[JointDegreeNames.LOW_HIGH_DEGREE_BOUND] = [(1, 20), (1, 10)]
 
     DegreeDistObj = JointDegreeMarginal(params)
     jds = DegreeDistObj.sample_jds_from_jdd(size)
