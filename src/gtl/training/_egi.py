@@ -122,6 +122,7 @@ def train(
         loss = model(dgl_graph, features, blocks)
 
         log.update({f"{config['wandb_summary_prefix']}-validation-loss": loss})
+        del loss, blocks
 
         wandb.log(log)
 
