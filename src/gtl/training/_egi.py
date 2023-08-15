@@ -82,6 +82,9 @@ def train(
     val_nodes = torch.split(dgl_graph.nodes()[indexes], validation_size)[0]
     train_nodes = torch.unique(torch.cat([val_nodes, dgl_graph.nodes()]))
 
+
+    training_dataloader = DataLoader(dgl_graph,train_nodes,sampler,batch_size=config["batch_size"],shuffle=True,device=device)
+
     for epoch in tqdm(range(config["n_epochs"])):
         log = dict()
 
@@ -95,15 +98,7 @@ def train(
         # the sampler returns a list of blocks and involved nodes
         # each block holds a set of edges from a source to destination
         # each block is a hop in the graph
-
-        for blocks in DataLoader(
-            dgl_graph,
-            train_nodes,
-            sampler,
-            batch_size=config["batch_size"],
-            shuffle=True,
-            device=device,
-        ):
+        for blocks in training_dataloader:
             batch_loss = model(dgl_graph, features, blocks)
             batch_loss.backward()
             optimizer.step()
