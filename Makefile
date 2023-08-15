@@ -8,7 +8,7 @@ PYTHON := poetry run python3
 
 # Datasets
 POISSON_TAR_URL = https://niklas.dewally.com/files/staris-gtl/2023-08-04-poisson-graphs.tar.gz
-POWERLAW_TAR_URL = https://niklas.dewally.com/files/staris-gtl/2023-08-14-powerlaw-graphs.tar.gz
+POWERLAW_TAR_URL = https://niklas.dewally.com/files/staris-gtl/2023-08-15-powerlaw-graphs.tar.gz
 
 ########################################################
 #                    PHONY COMMANDS                    #
@@ -34,7 +34,7 @@ dl-coauthor: data/raw/coauthor-cs.npz data/raw/coauthor-phy.npz
 
 .PHONY: dl-aug23
 ## Download input synthetic graphs for August 2023 experiments.
-dl-aug23: data/2023-08-poisson
+dl-aug23: data/2023-08-poisson data/2023-08-powerlaw
 
 .PHONY: clean
 ## Clean all data directories
