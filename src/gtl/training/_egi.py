@@ -139,7 +139,7 @@ def train(
 
             # Early stopping
             # If no improvement for <patience> epochs, stop.
-            if loss >= prev_val_loss + config["min_delta"]:
+            if loss >= prev_val_loss or prev_val_loss - loss <= wandb.config["min_delta"]:
                 patience -= 1
             else:
                 patience = wandb.config["patience"]
