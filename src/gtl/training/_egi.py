@@ -75,6 +75,8 @@ def train(
     # some summary statistics
     best = 1e9
     best_epoch = -1
+    prev_val_loss = 1e9
+    patience = wandb.config["patience"]
 
     # shuffle nodes before putting into train and validation sets
     indexes = torch.randperm(dgl_graph.nodes().shape[0])
@@ -128,16 +130,23 @@ def train(
 
             wandb.log(log)
 
-            # early stopping
-            if loss <= best + config["min_delta"]:
+            # Record best
+            if loss <= best:
                 best = loss
                 best_epoch = epoch
                 # save current weights
                 torch.save(model.state_dict(), early_stopping_filepath)
 
+            # Early stopping
+            # If no improvement for <patience> epochs, stop.
+            if loss >= prev_val_loss + config["min_delta"]:
+                patience -= 1
+            else:
+                patience = wandb.config["patience"]
+
             del loss, blocks
 
-            if epoch - best_epoch > config["patience"]:
+            if patience <= 0:
                 print("Early stopping!")
                 model.load_state_dict(torch.load(early_stopping_filepath))
 
