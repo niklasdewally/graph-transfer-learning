@@ -108,7 +108,7 @@ def train(
             batch_loss = model(dgl_graph, features, blocks)
             batch_loss.backward()
             optimizer.step()
-            loss += batch_loss
+            loss += batch_loss.detach()
 
         log.update({f"{config['wandb_summary_prefix']}-training-loss": loss})
 
@@ -121,7 +121,7 @@ def train(
         blocks = sampler.sample(dgl_graph, val_nodes)
         loss = model(dgl_graph, features, blocks)
 
-        log.update({f"{config['wandb_summary_prefix']}-validation-loss": loss})
+        log.update({f"{config['wandb_summary_prefix']}-validation-loss": loss.detach()})
 
         wandb.log(log)
 
