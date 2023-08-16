@@ -108,7 +108,7 @@ def train(
             batch_loss = model(dgl_graph, features, blocks)
             batch_loss.backward()
             optimizer.step()
-            loss += batch_loss
+            loss += batch_loss.detach()
 
         log.update({f"{config['wandb_summary_prefix']}-training-loss": loss})
 
@@ -117,33 +117,35 @@ def train(
         # VALIDATION
 
         model.eval()
-        loss = 0.0
-        blocks = sampler.sample(dgl_graph, val_nodes)
-        loss = model(dgl_graph, features, blocks)
+        with torch.no_grad():
+            loss = 0.0
+            blocks = sampler.sample(dgl_graph, val_nodes)
+            loss = model(dgl_graph, features, blocks)
 
-        log.update({f"{config['wandb_summary_prefix']}-validation-loss": loss})
-        del loss, blocks
+            log.update(
+                {f"{config['wandb_summary_prefix']}-validation-loss": loss.detach()}
+            )
 
-        wandb.log(log)
+            wandb.log(log)
 
-        # early stopping
-        if loss <= best + config["min_delta"]:
-            best = loss
-            best_epoch = epoch
-            # save current weights
-            torch.save(model.state_dict(), early_stopping_filepath)
+            # early stopping
+            if loss <= best + config["min_delta"]:
+                best = loss
+                best_epoch = epoch
+                # save current weights
+                torch.save(model.state_dict(), early_stopping_filepath)
 
-        del loss, blocks
+            del loss, blocks
 
-        if epoch - best_epoch > config["patience"]:
-            print("Early stopping!")
-            model.load_state_dict(torch.load(early_stopping_filepath))
+            if epoch - best_epoch > config["patience"]:
+                print("Early stopping!")
+                model.load_state_dict(torch.load(early_stopping_filepath))
 
-            wandb.summary[
-                f"{config['wandb_summary_prefix']}-early-stopping-epoch"
-            ] = best_epoch
+                wandb.summary[
+                    f"{config['wandb_summary_prefix']}-early-stopping-epoch"
+                ] = best_epoch
 
-            break
+                break
 
     if config["save_weights_to"] is not None:
         print(f"Saving model parameters to {config['save_weights_to']}")
