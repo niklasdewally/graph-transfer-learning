@@ -14,11 +14,10 @@ import gtl
 
 
 def main() -> int:
-    wandb.disable()
-
     # create dummy run just to have config dict
     wandb.init(
         project="August 2023 01 - Triangle Detection",
+        mode="disabled",
         entity="sta-graph-transfer-learning",
         config=default_config,
         name="DEV",
