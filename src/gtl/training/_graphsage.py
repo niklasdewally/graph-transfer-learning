@@ -117,7 +117,7 @@ def train(
             l = loss_function(output_nodes, embs)
             l.backward()
             optimizer.step()
-            loss += l
+            loss += l.detach()
 
         log.update({f"{config['wandb_summary_prefix']}-training-loss": loss})
 
@@ -129,29 +129,30 @@ def train(
         loss_in_nodes, loss_out_nodes, loss_blocks = sampler.sample(dgl_graph, indexes)
         loss_feats = dgl_graph.ndata["feat"][loss_blocks[0].srcdata[dgl.NID]]
 
-        for input_nodes, output_nodes, blocks in val_dataloader:
-            embs = model(loss_blocks, loss_feats)
-            l = loss_function(output_nodes, embs)
+        while torch.no_grad():
+            for input_nodes, output_nodes, blocks in val_dataloader:
+                embs = model(loss_blocks, loss_feats)
+                l = loss_function(output_nodes, embs)
 
-            loss += l.item()
+                loss += l.detach().item()
 
-        log.update({f"{config['wandb_summary_prefix']}-validation-loss": loss})
-        wandb.log(log)
+            log.update({f"{config['wandb_summary_prefix']}-validation-loss": loss})
+            wandb.log(log)
 
-        # early stopping
-        if loss <= best + config["min_delta"]:
-            best = loss
-            best_epoch = epoch
-            # save current weights
-            torch.save(model.state_dict(), early_stopping_filepath)
+            # early stopping
+            if loss <= best + config["min_delta"]:
+                best = loss
+                best_epoch = epoch
+                # save current weights
+                torch.save(model.state_dict(), early_stopping_filepath)
 
-        if epoch - best_epoch > config["patience"]:
-            print("Early stopping!")
-            model.load_state_dict(torch.load(early_stopping_filepath))
-            wandb.summary[
-                f"{config['wandb_summary_prefix']}-early-stopping-epoch"
-            ] = best_epoch
-            break
+            if epoch - best_epoch > config["patience"]:
+                print("Early stopping!")
+                model.load_state_dict(torch.load(early_stopping_filepath))
+                wandb.summary[
+                    f"{config['wandb_summary_prefix']}-early-stopping-epoch"
+                ] = best_epoch
+                break
 
     # save parameters for later fine-tuning if a save path is given
     if config["save_weights_to"] is not None:
