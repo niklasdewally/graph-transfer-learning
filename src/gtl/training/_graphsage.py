@@ -140,7 +140,7 @@ def train(
             wandb.log(log)
 
             # early stopping
-            if loss <= best + config["min_delta"]:
+            if loss <= best - config["min_delta"]:
                 best = loss
                 best_epoch = epoch
                 # save current weights
