@@ -47,7 +47,7 @@ library(stringr)
 ```{r}
 #| echo: false
 #| message: false
-filename <- "foo.csv"
+filename <- "data.csv"
 data <- read_csv(filename)
 ```
 
@@ -73,7 +73,7 @@ knitr::kable(grouped)
   ggtitle("Accuracy") +
   theme(axis.text.x=element_text(angle=90,hjust=1))
 ```
-
+\newpage
 # Discussion
 
 
