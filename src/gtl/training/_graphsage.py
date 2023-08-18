@@ -129,7 +129,7 @@ def train(
         loss_in_nodes, loss_out_nodes, loss_blocks = sampler.sample(dgl_graph, indexes)
         loss_feats = dgl_graph.ndata["feat"][loss_blocks[0].srcdata[dgl.NID]]
 
-        while torch.no_grad():
+        with torch.no_grad():
             for input_nodes, output_nodes, blocks in val_dataloader:
                 embs = model(loss_blocks, loss_feats)
                 l = loss_function(output_nodes, embs)
