@@ -33,13 +33,13 @@ This has been tested on Ubuntu and a GTX 3060 card only.
 First, build the container:
 
 ```
-docker build $(id -u) --build-arg local_user=$USER -t graph-transfer-learning/devel .
+docker build -t graph-transfer-learning/devel .
 ```
 
 Then, run the container:
 
 ```
-docker run --runtime=nvidia --rm -it -v "$(pwd):/home/$(whoami)/workspace" graph-transfer-learning/devel bash
+docker run --runtime=nvidia --rm -it -v "$(pwd):/workspace" graph-transfer-learning/devel bash
 ```
 
 The local filesystem will be mounted to the `workspace/` folder in the container.
