@@ -17,11 +17,13 @@ The following system configurations are supported:
 | Intel Macs (CPU) | Poetry|
 
 
-Further systems could be added (if desired) by adding the systems' `dgl` wheels to the `pyproject.toml` file.
+Further systems could be added (if desired) by adding the systems' `dgl` wheels
+to the `pyproject.toml` file.
 
 ## Docker
 
-Docker container running CUDA 11.7 has been provided. A working installation of NVIDIA container toolkit on the host machine is requried for this to work.
+Docker container running CUDA 11.7 has been provided. A working installation of
+NVIDIA container toolkit on the host machine is requried for this to work.
 
 This has been tested on Ubuntu and a GTX 3060 card only.
 
@@ -31,21 +33,16 @@ This has been tested on Ubuntu and a GTX 3060 card only.
 First, build the container:
 
 ```
-docker build --build-arg local_uid=$(id -u) --build-arg local_user=$USER -t graph-transfer-learning/devel .
+docker build $(id -u) --build-arg local_user=$USER -t graph-transfer-learning/devel .
 ```
 
 Then, run the container:
 
 ```
-docker run --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --runtime=nvidia --rm -it --user $(id -u):$(id -g) -v "$(pwd):/home/$(whoami)/workspace" graph-transfer-learning/devel bash
+docker run --runtime=nvidia --rm -it -v "$(pwd):/home/$(whoami)/workspace" graph-transfer-learning/devel bash
 ```
 
 The local filesystem will be mounted to the `workspace/` folder in the container.
-
-
-Note that the user inside the container has  the same user name and id as the user who launched the container on the host system. This is because of https://github.com/niklasdewally/graph-transfer-learning/issues/2. 
-
-To access root commands inside the container, use `sudo`.
 
 ## Poetry
 
