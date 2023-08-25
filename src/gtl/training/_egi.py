@@ -104,13 +104,13 @@ def train(
         # the sampler returns a list of blocks and involved nodes
         # each block holds a set of edges from a source to destination
         # each block is a hop in the graph
-        for blocks in training_dataloader:
+        for i,blocks in enumerate(training_dataloader):
             batch_loss = model(dgl_graph, features, blocks)
             batch_loss.backward()
             optimizer.step()
-            loss += batch_loss.detach()
+            loss += batch_loss.detach().item()
 
-        log.update({f"{config['wandb_summary_prefix']}-training-loss": loss})
+        log.update({f"{config['wandb_summary_prefix']}-training-loss": loss/(i+1)})
 
         del batch_loss, loss, blocks
 
@@ -123,7 +123,7 @@ def train(
             loss = model(dgl_graph, features, blocks)
 
             log.update(
-                {f"{config['wandb_summary_prefix']}-validation-loss": loss.detach()}
+                {f"{config['wandb_summary_prefix']}-validation-loss": loss.detach().item()}
             )
 
             wandb.log(log)
