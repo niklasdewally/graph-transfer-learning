@@ -161,6 +161,6 @@ def train(
         sampler = dgl.dataloading.MultiLayerFullNeighborSampler(config["k"])
         (inp, out, blocks) = sampler.sample(g, g.nodes())
 
-        return model(blocks, features[blocks[0].srcdata[dgl.NID]])
+        return model(blocks, features)
 
     return encoder
