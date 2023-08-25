@@ -112,6 +112,9 @@ def train(
             optimizer.step()
             loss += batch_loss.detach().item()
 
+            if i == 0:
+                epoch_log.update({f"{config['wandb_summary_prefix']}-first-batch-loss":batch_loss})
+
         epoch_log.update(
             {f"{config['wandb_summary_prefix']}-training-loss": loss / (i + 1)}
         )
