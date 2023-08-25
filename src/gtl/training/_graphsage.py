@@ -98,7 +98,7 @@ def train(
         optimizer.zero_grad()
 
         # TRAIN
-        for batch_inp, batch_out, blocks in train_dataloader:
+        for i, (batch_inp, batch_out, blocks) in enumerate(train_dataloader):
             # calculate gradients, etc for batch blocks only
             model(blocks, blocks[0].srcdata["feat"])
 
@@ -110,22 +110,24 @@ def train(
             batch_loss.backward()
 
             optimizer.step()
-            loss += batch_loss.detach()
+            loss += batch_loss.detach().item()
 
-        epoch_log.update({f"{config['wandb_summary_prefix']}-training-loss": loss})
+        epoch_log.update(
+            {f"{config['wandb_summary_prefix']}-training-loss": loss / (i + 1)}
+        )
 
         # VALIDATE
         model.eval()
         loss = 0.0
 
         with torch.no_grad():
-            for batch_inp, batch_out, blocks in val_dataloader:
+            for i, (batch_inp, batch_out, blocks) in enumerate(val_dataloader):
                 embs = model(full_g_blocks, features)
                 batch_loss = loss_function(batch_out, embs)
                 loss += batch_loss
 
             epoch_log.update(
-                {f"{config['wandb_summary_prefix']}-validation-loss": loss}
+                {f"{config['wandb_summary_prefix']}-validation-loss": loss / (i + 1)}
             )
             wandb.log(epoch_log)
 
