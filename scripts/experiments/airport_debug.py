@@ -37,7 +37,6 @@ import torch.nn as nn
 from gtl import Graph
 from gtl.cli import add_wandb_options
 from gtl.features import degree_bucketing
-from gtl.training.graphsage import train_graphsage_encoder
 from gtl.typing import PathLike
 from numpy.typing import NDArray
 from sklearn.linear_model import SGDClassifier
@@ -64,6 +63,7 @@ default_config: MutableMapping = {
     "source-dataset": "europe",
     "target-dataset": "brazil",
     "models": ["graphsage-mean"],
+    "k":2
 }
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -78,7 +78,6 @@ def load_dataset(edgefile: PathLike, labelfile: PathLike) -> tuple[Graph, NDArra
     dgl_graph = dgl.to_bidirected(dgl_graph).to(device)
 
     graph: Graph = gtl.Graph.from_dgl_graph(dgl_graph)
-    graph.mine_triangles()
 
     labels = np.loadtxt(labelfile, skiprows=1)
 
