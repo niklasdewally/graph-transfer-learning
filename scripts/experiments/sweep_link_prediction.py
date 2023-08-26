@@ -9,7 +9,7 @@ from aug_link_prediction import do_run
 # pyre-ignore[21]:
 import wandb
 
-MAX_RUNS_PER_MODEL = 50
+MAX_RUNS_PER_MODEL = 60
 MODELS = [
     "graphsage-mean",
     "egi",
@@ -25,9 +25,9 @@ sweep_config: MutableMapping = {
         "hidden_layers": {"min": 16, "max": 512},
         "lr": {"min": 0.0001, "max": 0.1},
         "k": {"min": 2, "max": 4},
-        "patience": {"value": 25},
+        "patience": {"value": 50},
         "min_delta": {"value": 0.01},
-        "epochs": {"value": 100},
+        "n_epochs": {"value": 300},
         "source_size": {"value": 1000},
         "target_size": {"value": 1000},
     },

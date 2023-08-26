@@ -16,30 +16,18 @@ import gtl
 def main() -> int:
     # create dummy run just to have config dict
     wandb.init(
-        project="August 2023 02 - Link Prediction",
+        project="August-2023-GraphSAGE-Link-Prediction-Debugging",
         entity="sta-graph-transfer-learning",
         config=default_config,
         tags=["debug"],
     )
     wandb.config["source_size"] = "1000"
     wandb.config["target_size"] = "1000"
-    wandb.config["model"] = "graphsage-mean"
+    wandb.config["model"] = "triangle"
 
     model_config = gtl.load_model_config(HYPERPARAMS_DIR, wandb.config["model"])
     wandb.config.update(model_config)
-    do_run()
-    #with torch.profiler.profile(
-    #    activities=[
-    #        torch.profiler.ProfilerActivity.CPU,
-    #        torch.profiler.ProfilerActivity.CUDA,
-    #    ],
-    #    profile_memory=True,
-    #    with_flops=True,
-    #    record_shapes=True,
-    #) as p:
-    #    do_run()
-
-    #p.export_chrome_trace("trace.json")
+    do_run("validate")
     wandb.finish()
 
     return 0
