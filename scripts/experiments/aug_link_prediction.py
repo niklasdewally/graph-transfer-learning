@@ -11,6 +11,7 @@ import gtl.features
 import gtl.training
 import numpy as np
 import torch
+import torch.nn.functional as F
 
 from torch import Tensor
 
@@ -29,7 +30,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 SCRIPT_DIR: pathlib.Path = pathlib.Path(__file__).parent.resolve()
 PROJECT_DIR: pathlib.Path = SCRIPT_DIR.parent.parent.resolve()
-HYPERPARAMS_DIR: pathlib.Path = SCRIPT_DIR / "aug_link_prediction_hyperparams"
+HYPERPARAMS_DIR: pathlib.Path = SCRIPT_DIR / "aug_link_prediction_hyperparams" 
 DATA_DIR: pathlib.Path = PROJECT_DIR / "data" / "2023-08-poisson"
 
 ##############################
@@ -139,8 +140,9 @@ def do_run(eval_mode: str = "test") -> None:
     edges_np = edges.detach().cpu().numpy()
     classes_np = classes.detach().cpu().numpy()
 
-    classifier = SGDClassifier(max_iter=1000)
+    classifier = SGDClassifier(max_iter=1000,loss='log_loss')
     classifier = classifier.fit(edges_np, classes_np)
+    wandb.summary['training-acc'] = classifier.score(edges_np,classes_np)
 
     if eval_mode == "test":
         # Test triangle prediction on all target graphs, and keep the average
@@ -235,8 +237,36 @@ def _load_graphs(size: int) -> list[Graph]:
 
 
 def _get_edge_embeddings(embs: Tensor, us: Tensor, vs: Tensor) -> Tensor:
-    return embs[us] * embs[vs]
+    # Based on testing, concat is the only method that gets >0.5 accuracy on GraphSAGE.
+    # (I exclude l1,l2 as these are binary only, so will not extend to triangle prediction)
 
+    # HADAMARD
+    #return embs[us] * embs[vs]
+
+    #return F.cosine_similarity(embs[us],embs[vs],dim=1)
+
+    # INNER
+    #out = torch.empty((us.shape[0],1),device=embs.get_device())
+    #for i in range(us.shape[0]):
+        #out[i] = torch.inner(embs[us[i]],embs[vs[i]])
+    
+    #CONCAT
+    out = torch.empty((us.shape[0],embs.shape[1]*2),device=embs.get_device())
+    for i in range(us.shape[0]):
+        out[i] = torch.cat((embs[us[i]],embs[vs[i]]))
+    return out
+
+    # AVG
+    #out = torch.empty((us.shape[0],embs.shape[1]),device=embs.get_device())
+    #for i in range(us.shape[0]):
+    #    out[i] = embs[us[i]] + embs[vs[i]] / 2
+    #return out
+
+    # ABS Sub
+    #out = torch.empty((us.shape[0],embs.shape[1]),device=embs.get_device())
+    #for i in range(us.shape[0]):
+    #    out[i] = torch.abs(embs[us[i]] - embs[vs[i]])
+    #return out
 
 if __name__ == "__main__":
     sys.exit(main())

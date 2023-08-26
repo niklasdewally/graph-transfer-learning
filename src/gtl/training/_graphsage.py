@@ -1,3 +1,4 @@
+# pyre-ignore-all-errors
 __all__ = ["train"]
 
 
@@ -53,14 +54,13 @@ def train(
     optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"], weight_decay=0.0)
 
     # test train split
-    indexes = torch.randperm(dgl_graph.nodes().shape[0]).to(device)
+    val_idxs = torch.randperm(dgl_graph.nodes().shape[0]).to(device)
     validation_size = dgl_graph.nodes().shape[0] // 6
-    val_nodes = torch.split(dgl_graph.nodes()[indexes], validation_size)[0]
+    val_nodes = torch.split(dgl_graph.nodes()[val_idxs], validation_size)[0]
     train_nodes = torch.unique(torch.cat([val_nodes, dgl_graph.nodes()]))
 
-    loss_function = graphsage.SAGEUnsupervisedLoss(
-        Graph.from_dgl_graph(dgl_graph), dgl_graph.nodes().detach().cpu().tolist()
-    )
+    loss_function = graphsage.SAGEUnsupervisedLoss(graph)
+
     train_dataloader = DataLoader(
         dgl_graph,
         train_nodes,
@@ -69,6 +69,7 @@ def train(
         shuffle=True,
         device=device,
     )
+
     val_dataloader = DataLoader(
         dgl_graph,
         val_nodes,
@@ -78,13 +79,18 @@ def train(
         device=device,
     )
 
+    # convert entire graph to k-deep message flow graph for creating embeddings.
+    (_, _, full_g_blocks) = dgl.dataloading.MultiLayerFullNeighborSampler(
+        config["k"]
+    ).sample(dgl_graph, dgl_graph.nodes())
+
     # some summary statistics
     best = 1e9
     best_epoch = -1
 
     print("Training!")
     for epoch in tqdm(range(config["n_epochs"])):
-        log = dict()
+        epoch_log = dict()
 
         loss = 0.0
 
@@ -92,55 +98,44 @@ def train(
         optimizer.zero_grad()
 
         # TRAIN
-        for input_nodes, output_nodes, blocks in train_dataloader:
-            # we need to have embeddings for the entire graph for the loss function
-            # however, we only back propogate based on those in our batch
-
-            loss_in_nodes, loss_out_nodes, loss_blocks = sampler.sample(
-                dgl_graph, indexes
-            )
-            # samplers do not do prefetching of features, only dataloaders do
-            # emulate this behaviour ourselves
-            # from https://docs.dgl.ai/en/1.0.x/generated/dgl.dataloading.base.LazyFeature.html
-
-            loss_feats = dgl_graph.ndata["feat"][loss_blocks[0].srcdata[dgl.NID]]
-
+        for i, (batch_inp, batch_out, blocks) in enumerate(train_dataloader):
             # calculate gradients, etc for batch blocks only
-            model.train()
             model(blocks, blocks[0].srcdata["feat"])
 
-            # calculate all the graphs node embeddings for loss function use
+            # we need to have embeddings for the entire graph for the loss function
+            # however, we only back-propagate based on those in our batch
             model.eval()
-            embs = model(loss_blocks, loss_feats)
+            embs = model(full_g_blocks, features)
+            batch_loss = loss_function(batch_out, embs)
+            batch_loss.backward()
 
-            # note that we only use batch output_nodes in our loss calculation
-            l = loss_function(output_nodes, embs)
-            l.backward()
             optimizer.step()
-            loss += l.detach()
+            loss += batch_loss.detach().item()
 
-        log.update({f"{config['wandb_summary_prefix']}-training-loss": loss})
+            if i == 0:
+                epoch_log.update({f"{config['wandb_summary_prefix']}-first-batch-loss":batch_loss})
+
+        epoch_log.update(
+            {f"{config['wandb_summary_prefix']}-training-loss": loss / (i + 1)}
+        )
 
         # VALIDATE
         model.eval()
         loss = 0.0
 
-        # as above, we need embeddings for the entire graph for the loss function
-        loss_in_nodes, loss_out_nodes, loss_blocks = sampler.sample(dgl_graph, indexes)
-        loss_feats = dgl_graph.ndata["feat"][loss_blocks[0].srcdata[dgl.NID]]
+        with torch.no_grad():
+            for i, (batch_inp, batch_out, blocks) in enumerate(val_dataloader):
+                embs = model(full_g_blocks, features)
+                batch_loss = loss_function(batch_out, embs)
+                loss += batch_loss
 
-        while torch.no_grad():
-            for input_nodes, output_nodes, blocks in val_dataloader:
-                embs = model(loss_blocks, loss_feats)
-                l = loss_function(output_nodes, embs)
-
-                loss += l.detach().item()
-
-            log.update({f"{config['wandb_summary_prefix']}-validation-loss": loss})
-            wandb.log(log)
+            epoch_log.update(
+                {f"{config['wandb_summary_prefix']}-validation-loss": loss / (i + 1)}
+            )
+            wandb.log(epoch_log)
 
             # early stopping
-            if loss <= best + config["min_delta"]:
+            if loss <= best - config["min_delta"]:
                 best = loss
                 best_epoch = epoch
                 # save current weights
@@ -169,6 +164,6 @@ def train(
         sampler = dgl.dataloading.MultiLayerFullNeighborSampler(config["k"])
         (inp, out, blocks) = sampler.sample(g, g.nodes())
 
-        return model(blocks, features[blocks[0].srcdata[dgl.NID]])
+        return model(blocks, features)
 
     return encoder
