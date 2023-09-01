@@ -1,6 +1,3 @@
-# Model type
-model = "graphsage"
-
 # Hyperparams
 batch_size = 64
 hidden_layers = 32
@@ -10,4 +7,4 @@ lr = 0.01
 # Training duration and early stopping
 epochs = 200
 min_delta = 0.01
-patience = 50
+patience = 25

@@ -1,13 +1,11 @@
-# Model type
-model = "egi"
 
 # Hyperparams
-batch_size = 32
-hidden_layers = 32
-k = 3
-lr = 0.0032
+batch_size = 64
+hidden_layers = 144
+k = 2
+lr = 0.051
 
 # Training duration and early stopping
-epochs = 100
+n_epochs = 300
 min_delta = 0.01
-patience = 10
+patience = 25
