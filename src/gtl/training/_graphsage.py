@@ -104,7 +104,6 @@ def train(
 
             # we need to have embeddings for the entire graph for the loss function
             # however, we only back-propagate based on those in our batch
-            model.eval()
             embs = model(full_g_blocks, features)
             batch_loss = loss_function(batch_out, embs)
             batch_loss.backward()
