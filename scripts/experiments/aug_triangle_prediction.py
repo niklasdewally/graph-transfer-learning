@@ -17,6 +17,8 @@ from gtl import Graph
 from numpy.typing import NDArray
 from sklearn.linear_model import SGDClassifier
 
+from IPython import embed
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 #######################
@@ -132,7 +134,7 @@ def do_run(eval_mode: str = "test") -> None:
         (np.ones(pos_triangles.shape[0]), np.zeros(neg_triangles.shape[0]))
     )
 
-    classifier = SGDClassifier(max_iter=1000,loss='log_loss')
+    classifier = SGDClassifier(max_iter=1000, loss="log_loss")
     classifier = classifier.fit(triangles, classes)
 
     if eval_mode == "test":
@@ -223,7 +225,6 @@ def _load_graphs(size: int) -> tuple[list[Graph], list[list[int]]]:
 # pyre-ignore[2]
 # pyre-ignore[3]
 def _embed_triangles(triangles: NDArray[Any], embs: NDArray[Any]) -> NDArray[Any]:
-
     us = triangles[:, 0]
     vs = triangles[:, 1]
     ws = triangles[:, 2]
@@ -231,9 +232,9 @@ def _embed_triangles(triangles: NDArray[Any], embs: NDArray[Any]) -> NDArray[Any
     assert us.shape[0] == vs.shape[0]
     assert us.shape[0] == ws.shape[0]
 
-    out = np.empty((us.shape[0],embs.shape[1]*2))
+    out = np.empty((us.shape[0], embs.shape[1] * 3))
     for i in range(us.shape[0]):
-        out[i] = np.cat((embs[us[i]],embs[vs[i]],embs[ws[i]]))
+        out[i] = np.concatenate((embs[us[i]], embs[vs[i]], embs[ws[i]]), axis=0)
     return out
 
 
