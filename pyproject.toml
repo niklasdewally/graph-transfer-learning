@@ -41,7 +41,8 @@ black = "*"
 pyre-check = "^0.9.18"
 ruff = "^0.0.275"
 ipdb="*"
-
+sphinx="*"
+furo="*"
 
 
 [tool.ruff]
