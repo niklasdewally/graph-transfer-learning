@@ -30,6 +30,7 @@ Niklas Dewally <mailto:nd60@st-andrews.ac.uk>
    :hidden:
 
    concepts/bibilography
+   concepts/unsupervised_learning
 
 .. toctree::
    :caption: Howto
