@@ -12,3 +12,6 @@ export CUDA_HOME=/usr/local/cuda-11.7
 
 poetry install 
 poetry shell
+pip install torch torchvision torchaudio
+pip install  dgl -f https://data.dgl.ai/wheels/cu117/repo.html
+pip install  dglgo -f https://data.dgl.ai/wheels-test/repo.html
