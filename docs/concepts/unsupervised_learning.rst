@@ -15,7 +15,7 @@ classification.
 
 These downstream models can be simple classifiers, such as `SGDClassifier
 <https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.SGDClassifier.html>`_
-from `sklearn`, or Multilayer perceptrons using PyTorch.
+from ``sklearn``, or a *Multilayer Perceptron* implemented using ``pytorch``.
 
 This differs from supervised learning approaches, in which a single
 model is created for a task by adding some `Linear` layers to the end of a
@@ -25,23 +25,26 @@ model using `GNN` layers.
 Classification
 --------------
 
-.. image:: unsupervised_learning_1.png
+.. image:: classification.png
 
 ---------------
 Link Prediction 
 ---------------
 
-.. image:: unsupervised_learning_2.png
+.. image:: linkpred.png
 
 
-Any binary operator that combines two vectors into one can be used to turn node
-embeddings into edge embeddings.
+Creating Edge Embeddings
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
-These include (non exhaustively):
+We consider an edge to be a combination of the nodes that it consists of.
+Hence, we use a binary operator to turn node embeddings into edge embeddings.
 
-* haddamard product
+Possible operators include:
+
+* Hadamard product
 * dot product
 * concatenation
-* abs(A-B)
 * average
+* ``abs(a-b)``
   

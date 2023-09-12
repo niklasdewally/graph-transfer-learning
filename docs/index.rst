@@ -17,25 +17,21 @@ Contact
 Niklas Dewally <mailto:nd60@st-andrews.ac.uk>
 
 .. toctree::
-   :caption: Introduction
    :hidden:
 
    introduction/installation
    introduction/project_structure
 
-
 .. toctree::
    :caption: Concepts & Background
    :hidden:
 
-   concepts/bibilography
    concepts/unsupervised_learning
+   concepts/bibilography
 
 .. toctree::
    :caption: Howto
    :hidden:
-
-   howto/link_prediction
 
 .. toctree::
    :caption: Development

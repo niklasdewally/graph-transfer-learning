@@ -2,15 +2,15 @@ digraph Model {
 
 
  _FEATS -> EMB
- EMB -> LINKS [ label= "Node embeddings" ]
- LINKS -> CLASSIFIER [ label = "Edge embeddings" ]
+ EMB -> LINKS [ label= " node embeddings" ]
+ LINKS -> CLASSIFIER [ label = " edge embeddings" ]
  CLASSIFIER ->  _RESULTS 
 
 
  _FEATS [shape=plaintext label="Node features (from dataset, or synthetic)"]
  _RESULTS [shape=plaintext label="Probability of link"]
 
- EMB [ label=< Graph embedder <BR/> <B>DGL / Pytorch GNN</B> > ]
+ EMB [ label=< Graph encoder <BR/> <B>DGL / Pytorch GNN</B> > ]
  LINKS [label = < Create edge embeddings >]
  CLASSIFIER [label=< Link Predictor <BR/> <B>sklearn SGDClassifier</B> >]
 
