@@ -15,6 +15,6 @@ jobs:
       pages: write
       id-token: write
     steps:
-    - run: pip install juno
+    - run: pip install furo
     - id: deployment
       uses: sphinx-notes/pages@v3
