@@ -1,0 +1,15 @@
+digraph Model {
+
+
+ _FEATS -> EMB
+ EMB -> CLASSIFIER
+ CLASSIFIER ->  _RESULTS
+
+
+ _FEATS [shape=plaintext label="Node features (from dataset, or synthetic)"]
+ _RESULTS [shape=plaintext label="Class Predictions"]
+
+ EMB [ label=< Graph embedder <BR/> <B>DGL / Pytorch GNN</B> > ]
+ CLASSIFIER [label=< Classifier <BR/> <B>sklearn SGDClassifier</B> >]
+
+}

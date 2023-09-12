@@ -16,7 +16,6 @@ Contact
 --------
 Niklas Dewally <mailto:nd60@st-andrews.ac.uk>
 
-
 .. toctree::
    :caption: Introduction
    :hidden:
@@ -43,7 +42,6 @@ Niklas Dewally <mailto:nd60@st-andrews.ac.uk>
    :hidden:
 
    development/style_guide
-
 
 ..
   Indices and tables
