@@ -24,13 +24,13 @@ model is created for a task by using `GNN` layers then some `Linear` layers.
 Classification
 --------------
 
-.. graphviz :: classification.dot
+.. image :: classification.png
 
 ---------------
 Link Prediction 
 ---------------
 
-.. graphviz:: linkpred.dot
+.. image:: linkpred.png
 
 
 Creating Edge Embeddings
