@@ -22,10 +22,12 @@ Preliminaries
 
 * Unsupervised learning example using this library: TODO
 
+* Track your experiments and sweep hyperparameters: `Weights and Biases <https://wandb.ai/home>`_
+
 Papers
 --------
 
-*More papers on different GNN can be found in the documentation of DGL.*
+*Papers on more GNN architectures can be found in the documentation of DGL.*
 
 * `A Gentle Introduction to Deep Learning for Graphs <https://arxiv.org/abs/1912.12693>`_
 
