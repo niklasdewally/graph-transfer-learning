@@ -18,20 +18,19 @@ These downstream models can be simple classifiers, such as `SGDClassifier
 from ``sklearn``, or a *Multilayer Perceptron* implemented using ``pytorch``.
 
 This differs from supervised learning approaches, in which a single
-model is created for a task by adding some `Linear` layers to the end of a
-model using `GNN` layers. 
+model is created for a task by using `GNN` layers then some `Linear` layers.
 
 --------------
 Classification
 --------------
 
-.. image:: classification.png
+.. graphviz :: classification.dot
 
 ---------------
 Link Prediction 
 ---------------
 
-.. image:: linkpred.png
+.. graphviz:: linkpred.dot
 
 
 Creating Edge Embeddings

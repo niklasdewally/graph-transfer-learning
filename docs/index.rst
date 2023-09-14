@@ -14,7 +14,10 @@ Neural Networks.
 --------
 Contact
 --------
-Niklas Dewally <mailto:nd60@st-andrews.ac.uk>
+
+**Niklas Dewally:** 
+
+nd60 (at) st-andrews.ac.uk
 
 .. toctree::
    :hidden:
@@ -30,8 +33,9 @@ Niklas Dewally <mailto:nd60@st-andrews.ac.uk>
    concepts/bibilography
 
 .. toctree::
-   :caption: Howto
+   :caption: API
    :hidden:
+
 
 .. toctree::
    :caption: Development

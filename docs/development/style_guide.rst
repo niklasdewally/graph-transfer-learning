@@ -17,5 +17,5 @@ Style
 -----
 
 * Write typed Python where possible.
-* Use Google-style docstrings.
+* Use `Google-style docstrings <https://www.sphinx-doc.org/en/master/usage/extensions/example_google.html>`_.
 * Follow :doc:`Project Structure </introduction/project_structure>`.
