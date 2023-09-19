@@ -65,7 +65,8 @@ def train(
 
     model = model.to(device)
 
-    wandb.watch(model)
+    if wandb.run is not None:
+        wandb.watch(model)
 
     if config["load_weights_from"] is not None:
         model.load_state_dict(torch.load(config["load_weights_from"]), strict=False)
@@ -110,6 +111,7 @@ def train(
             optimizer.step()
             loss += batch_loss.detach().item()
 
+        
         log.update({f"{config['wandb_summary_prefix']}-training-loss": loss/(i+1)})
 
         del batch_loss, loss, blocks
@@ -126,7 +128,8 @@ def train(
                 {f"{config['wandb_summary_prefix']}-validation-loss": loss.detach().item()}
             )
 
-            wandb.log(log)
+            if wandb.run is not None:
+                wandb.log(log)
 
             # early stopping
             if loss <= best - config["min_delta"]:
@@ -141,9 +144,10 @@ def train(
                 print("Early stopping!")
                 model.load_state_dict(torch.load(early_stopping_filepath))
 
-                wandb.summary[
-                    f"{config['wandb_summary_prefix']}-early-stopping-epoch"
-                ] = best_epoch
+                if wandb.run is not None:
+                    wandb.summary[
+                        f"{config['wandb_summary_prefix']}-early-stopping-epoch"
+                    ] = best_epoch
 
                 break
 
