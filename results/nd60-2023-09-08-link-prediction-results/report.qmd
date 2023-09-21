@@ -1,0 +1,81 @@
+---
+title: "Link Prediction on Randomly Generated Graphs"
+subtitle: Experiment 1/2 Results
+date: 2023-09-08
+author: "Niklas Dewally (nd60@st-andrews.ac.uk)"
+---
+
+# Introduction
+
+This document presents the results of our experiment into the transfer learning
+of Graph Neural Networks (GNNs) 
+
+We show that ...
+
+# Experiment Summary
+
+The overarching aim of our work is to assess how well various GNN models
+transfer across graphs. In particular, we are interested in a few-shot learning
+scenario, in which a model trained on a small graph can be used to make
+predictions on a larger graph.
+
+In this experiment, we use a link prediction task to assess this. Each GNN
+produces a set of unsupervised node embeddings, which are concatanated
+together, and used to train a downstream link prediction classifier. We train
+the GNN encoder on a source graph, and use these trained weights to produce
+embeddings for the target graphs without fine-tuning.
+
+The graphs are drawn from an ensemble of synthetic graphs with identical
+distributions but different sizes. In this case, they are poisson distributed
+and have a maximal clique size of 3.
+
+**For more details, see the experimental plan document (2023-08-experiment-plan.pdf).**
+
+# Results
+
+```{r}
+#| echo: false
+#| include: false
+library(readr)
+library(dplyr)
+library(knitr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+```
+
+```{r}
+#| echo: false
+#| message: false
+filename <- "data.csv"
+data <- read_csv(filename)
+```
+
+```{r}
+#| echo: false
+#| message: false
+grouped <- data %>% 
+  group_by(`source_size`,`target_size`,`model`) %>% 
+  summarise(`mean` = mean(`acc`),`sd` = sd(`acc`))
+
+knitr::kable(grouped)
+```
+* * * 
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| fig-cap: "Triangle prediction accuracy"
+  ggplot(data,aes(x=`acc`,y=`model`)) +
+  geom_boxplot() + 
+  facet_grid(rows=vars(target_size),cols=vars(source_size)) + 
+  ggtitle("Accuracy") +
+  theme(axis.text.x=element_text(angle=90,hjust=1))
+```
+
+rows = target, cols = source
+\newpage
+# Discussion
+
+

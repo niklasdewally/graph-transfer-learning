@@ -35,7 +35,7 @@ DATA_DIR: pathlib.Path = PROJECT_DIR / "data" / "2023-08-poisson"
 ##############################
 
 default_config: MutableMapping = {
-    "sizes": [250, 1000, 10000, 100000],
+    "sizes": [250, 1000, 10000],
     "models": [
         "egi",
         "triangle",
