@@ -1,11 +1,11 @@
 # Hyperparams
-batch_size = 64
-hidden_layers = 507
-k = 2
-lr = 0.0002
+batch_size = 256
+hidden_layers = 193
+k = 4
+lr = 0.06
 
 # Training duration and early stopping
-epochs = 100
+n_epochs = 200
 min_delta = 0.01
 patience = 10
 
