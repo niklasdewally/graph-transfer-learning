@@ -96,6 +96,7 @@ def main() -> int:
             wandb.config.update({"avg_k": avg_k})
 
             do_run()
+            wandb.finish()
 
     return 0
 
